@@ -1,5 +1,5 @@
 {
-  "name": "reproloop/web",
+  "name": "reproloop",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
