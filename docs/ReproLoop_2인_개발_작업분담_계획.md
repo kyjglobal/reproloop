@@ -29,12 +29,12 @@ Discord /bug 제출
 
 인원 A는 환경설정 10단계를 끝내고 `chore/environment-bootstrap` PR 하나로 인계한다.
 
-- [ ] `apps/web`이 `@reproloop/web` 이름으로 실행된다.
-- [ ] `apps/worker`에 `package.json`, `tsconfig.json`, `src/index.ts`와 기본 스크립트가 있다.
-- [ ] `packages/db`, `packages/domain`, `packages/shared`에 각각 `package.json`, `tsconfig.json`, `src/index.ts`가 있다.
-- [ ] 루트 `pnpm-workspace.yaml`이 `apps/*`, `packages/*`를 인식한다.
-- [ ] Web·Worker·공통 개발 의존성이 설치되고 `pnpm-lock.yaml`이 갱신되어 있다.
-- [ ] `.env.example`과 `.gitignore`가 준비되어 있다.
+- [x] `apps/web`이 `@reproloop/web` 이름으로 실행된다.
+- [x] `apps/worker`에 `package.json`, `tsconfig.json`, `src/index.ts`와 기본 스크립트가 있다.
+- [x] `packages/db`, `packages/domain`, `packages/shared`에 각각 `package.json`, `tsconfig.json`, `src/index.ts`가 있다.
+- [x] 루트 `pnpm-workspace.yaml`이 `apps/*`, `packages/*`를 인식한다.
+- [x] Web·Worker·공통 개발 의존성이 설치되고 `pnpm-lock.yaml`이 갱신되어 있다.
+- [x] `.env.example`과 `.gitignore`가 준비되어 있다.
 - [ ] Supabase PostgreSQL과 Private Storage가 준비되어 있다.
 - [ ] Discord Application, OAuth Callback과 테스트 서버가 준비되어 있다.
 - [ ] GitHub 협업 권한과 기본 CI가 준비되어 있다.
