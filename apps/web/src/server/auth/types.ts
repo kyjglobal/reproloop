@@ -18,6 +18,10 @@ export interface OrganizationMembership {
   role: OrganizationRole;
 }
 
+export interface UserOrganizationMembership extends OrganizationMembership {
+  organizationName: string;
+}
+
 export interface ProjectMembership extends OrganizationMembership {
   projectId: string;
 }
@@ -32,6 +36,7 @@ export interface AuthAccessRepository {
     projectId: string;
     userId: string;
   }): Promise<ProjectMembership | null>;
+  listOrganizationMemberships(userId: string): Promise<UserOrganizationMembership[]>;
 }
 
 export type SessionGetter = () => Promise<Session | null>;

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "pnpm --filter @reproloop/db... build",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -12,6 +13,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@reproloop/db": "workspace:*",
     "@reproloop/shared": "workspace:*",
     "@supabase/supabase-js": "^2.112.2",
     "class-variance-authority": "^0.7.1",

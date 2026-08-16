@@ -36,6 +36,14 @@ function createRepository(): AuthAccessRepository {
       userId,
       role: "member" as const,
     })),
+    listOrganizationMemberships: vi.fn(async () => [
+      {
+        organizationId,
+        organizationName: "Small Moon Studio",
+        userId,
+        role: "admin" as const,
+      },
+    ]),
   };
 }
 
