@@ -95,14 +95,14 @@ B-00 착수 점검·결정 잠금
 | 상태 | 단계 | 관련 PR·브랜치 | 핵심 산출물 | 시작 조건 |
 |:---:|---|---|---|---|
 | **완료 (4/4)** | 1단계 | PR 없음 | 결정 기록, 환경 접근 확인, 기준선 검사 | A의 환경 인계 |
-| **다음 작업** | 2단계 | PR 2R — `feat/report-domain-foundation` 또는 `fix/db-contract-alignment` | 완전한 schema, migration, DB client·repository | 1단계 완료 |
-| 대기 | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
+| **완료 (7/7)** | 2단계 | PR 2R — `feat/report-domain-foundation` | 완전한 schema, migration, DB client·repository | 1단계 완료 |
+| **다음 작업** | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
 | 대기 | 4단계 | PR 4 — `feat/report-detail` | 상세 API, 이력 조회, 상세 화면 | 2단계 완료, A의 인증 helper |
 | 대기 | 5단계 | PR 5 — `feat/duplicate-merge` | 대표 검색, 병합·취소 서비스/API/UI | 4단계 완료, transition route 합의 |
 | 대기 | 6단계 | PR 6 — `feat/duplicate-recipients` | 대표·중복 제보자 조회와 알림 payload 연동 | 5단계 완료, A의 Worker job 계약 |
 | 대기 | 7단계 | PR 7 — `test/core-e2e` | 자동 통합 테스트, 운영 smoke 기록 | 3~6단계와 A의 P0 기능 완료 |
 
-1단계는 2026-08-14에 완료했다. 현재 시작점은 **2단계 DB·도메인 기반 완성**이다. 세부 결과는 [B 1단계 착수 점검 보고서](./B-1단계_착수_점검_보고서.md)에 기록한다.
+1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 현재 시작점은 **3단계 Discord `/bug` 접수**다. 세부 결과는 [B 1단계 착수 점검 보고서](./B-1단계_착수_점검_보고서.md)와 [B 2단계 DB·도메인 기반 완료 보고서](./B-2단계_DB_도메인_기반_완료_보고서.md)에 기록한다.
 
 <a id="phase-1"></a>
 
@@ -174,6 +174,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DB-01. schema 구조와 enum 정렬
 
+> 상태: **완료 — 2026-08-16**
+
 - 대상: `packages/db/src/schema/**`, `packages/db/src/index.ts`
 - 작업:
   - 현재 단일 `schema.ts`를 기능별 파일로 나누되 public export 이름을 명세와 맞춘다.
@@ -184,6 +186,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 명세의 `@reproloop/db` 공개 export를 루트에서 import할 수 있고, enum 값 비교 테스트가 통과함
 
 ### B-DB-02. 제약·인덱스·멱등성 정의
+
+> 상태: **완료 — 2026-08-16**
 
 - `discord_interaction_id` unique: 같은 Discord modal submit의 중복 저장 방지
 - `(project_id, report_number)` unique: 프로젝트 안의 `BUG-n` 식별자 보장
@@ -197,6 +201,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DB-03. DB 생성 factory 구현
 
+> 상태: **완료 — 2026-08-16**
+
 - 대상: `packages/db/src/client.ts`, `packages/db/src/index.ts`
 - 구현: `createDatabase(databaseUrl)`와 `Database` 타입
 - 금지: package import 시 `process.env`를 읽거나 연결하는 singleton `db`
@@ -205,12 +211,16 @@ B-00 착수 점검·결정 잠금
 
 ### B-DB-04. migration 생성·검증
 
+> 상태: **완료 — 2026-08-16, 개발 DB 적용 및 schema diff 0 확인**
+
 - B-00-04의 경로에 따라 Drizzle migration과 metadata 생성
 - 빈 DB 적용, 동일 DB 재실행 시 동작, 실패 시 부분 적용 여부 확인
-- 실제 개발 DB 적용은 A가 수행하고 B가 결과를 확인
+- 개발 DB 적용 담당자와 적용 시점을 확인한 뒤 B가 적용·검증 결과를 기록한다.
 - 완료 기준: 빈 PostgreSQL에 migration 적용 후 모든 테이블·enum·unique/FK가 존재하며 schema diff가 0임
 
 ### B-DB-05. ReportRepository의 Drizzle 구현
+
+> 상태: **완료 — 2026-08-16**
 
 - 대상 권장: `packages/db/src/repositories/drizzle-report-repository.ts`
 - 구현 항목:
@@ -224,6 +234,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DB-06. 제보 생성 command 구현
 
+> 상태: **완료 — 2026-08-16**
+
 - 대상 권장: `packages/db/src/reports/create-bug-report.ts`
 - 한 transaction에서 처리:
   1. guild·project·build 연결과 활성 상태 확인
@@ -236,6 +248,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 동시 또는 연속 중복 제출 테스트에서 제보와 생성 이력이 각각 한 건뿐임
 
 ### B-DB-07. DB·도메인 회귀 테스트
+
+> 상태: **완료 — 2026-08-16, 실제 PostgreSQL 통합 테스트 포함**
 
 - 기존 `ST-*`, `DM-*` ID를 테스트 이름에 유지
 - 추가 필수 테스트:
