@@ -8,6 +8,13 @@
       "when": 1786278837410,
       "tag": "0000_military_omega_flight",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786870800000,
+      "tag": "0001_full_schema_alignment",
+      "breakpoints": true
     }
   ]
 }
