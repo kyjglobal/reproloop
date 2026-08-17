@@ -57,6 +57,8 @@ const ModalComponentSchema = z.object({
 
 const ModalSubmitSchema = GuildInteractionSchema.extend({
   type: z.literal(5),
+  application_id: SnowflakeSchema,
+  token: z.string().trim().min(1),
   data: z.object({
     custom_id: z.string(),
     components: z.array(
