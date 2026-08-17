@@ -47,6 +47,13 @@ export function autocompleteResponse(choices: readonly DiscordChoice[]) {
   };
 }
 
+export function deferredEphemeralMessage() {
+  return {
+    type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+    data: { flags: DISCORD_EPHEMERAL_FLAG },
+  };
+}
+
 export function bugModalResponse(selection: DiscordBugSelection) {
   return {
     type: InteractionResponseType.MODAL,

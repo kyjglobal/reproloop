@@ -22,6 +22,7 @@ import {
   pongResponse,
 } from "./responses";
 import type { DiscordBugRepository } from "./types";
+import type { DiscordModalSubmit } from "./interaction-parser";
 
 function deriveTitle(actualResult: string): string {
   return actualResult.replace(/\s+/g, " ").trim().slice(0, 200);
@@ -105,32 +106,39 @@ export async function handleDiscordInteraction(
 
   const modal = parseModalSubmit(payload);
   if (modal) {
-    const selection = parseBugModalCustomId(modal.data.custom_id);
-    const rawFields = extractBugModalFields(modal);
-    const modalInput = DiscordBugModalInputSchema.safeParse(rawFields);
-
-    if (!selection || !modalInput.success) {
-      return ephemeralMessage("제보 입력을 확인해 주세요. 빠진 항목이나 너무 긴 항목이 있습니다.");
-    }
-
-    const commandInput = CreateBugReportCommandSchema.safeParse({
-      ...modalInput.data,
-      ...selection,
-      title: deriveTitle(modalInput.data.actualResult),
-      reporterDiscordUserId: modal.member.user.id,
-      reporterDisplayName: reporterDisplayName(modal),
-      discordGuildId: modal.guild_id,
-      sourceChannelId: modal.channel_id,
-      discordInteractionId: modal.id,
-    });
-
-    if (!commandInput.success) {
-      return ephemeralMessage("제보 입력을 확인해 주세요. 빠진 항목이나 너무 긴 항목이 있습니다.");
-    }
-
-    const created = await repository.createReport(commandInput.data);
-    return ephemeralMessage(`BUG-${created.reportNumber}이 접수되었습니다.`);
+    return ephemeralMessage(await handleDiscordModalSubmission(modal, repository));
   }
 
   return null;
+}
+
+export async function handleDiscordModalSubmission(
+  modal: DiscordModalSubmit,
+  repository: DiscordBugRepository,
+): Promise<string> {
+  const selection = parseBugModalCustomId(modal.data.custom_id);
+  const rawFields = extractBugModalFields(modal);
+  const modalInput = DiscordBugModalInputSchema.safeParse(rawFields);
+
+  if (!selection || !modalInput.success) {
+    return "제보 입력을 확인해 주세요. 빠진 항목이나 너무 긴 항목이 있습니다.";
+  }
+
+  const commandInput = CreateBugReportCommandSchema.safeParse({
+    ...modalInput.data,
+    ...selection,
+    title: deriveTitle(modalInput.data.actualResult),
+    reporterDiscordUserId: modal.member.user.id,
+    reporterDisplayName: reporterDisplayName(modal),
+    discordGuildId: modal.guild_id,
+    sourceChannelId: modal.channel_id,
+    discordInteractionId: modal.id,
+  });
+
+  if (!commandInput.success) {
+    return "제보 입력을 확인해 주세요. 빠진 항목이나 너무 긴 항목이 있습니다.";
+  }
+
+  const created = await repository.createReport(commandInput.data);
+  return `BUG-${created.reportNumber}이 접수되었습니다.`;
 }

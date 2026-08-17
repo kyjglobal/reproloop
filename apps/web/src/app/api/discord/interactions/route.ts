@@ -1,4 +1,5 @@
 import { handleDiscordInteractionRequest } from "@/server/discord/request-handler";
+import { after } from "next/server";
 import {
   getDiscordBugRepository,
   getDiscordPublicKey,
@@ -10,5 +11,6 @@ export function POST(request: Request) {
   return handleDiscordInteractionRequest(request, {
     publicKey: getDiscordPublicKey(),
     repository: getDiscordBugRepository(),
+    scheduleAfterResponse: after,
   });
 }

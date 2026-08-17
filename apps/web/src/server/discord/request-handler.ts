@@ -1,6 +1,11 @@
 import type { DiscordBugRepository, DiscordInteractionLogger } from "./types";
-import { handleDiscordInteraction } from "./interaction-handler";
-import { ephemeralMessage } from "./responses";
+import {
+  handleDiscordInteraction,
+  handleDiscordModalSubmission,
+} from "./interaction-handler";
+import { parseModalSubmit } from "./interaction-parser";
+import { editOriginalDiscordInteractionResponse } from "./followup";
+import { deferredEphemeralMessage, ephemeralMessage } from "./responses";
 import { verifyDiscordRequest } from "./verify-request";
 
 const defaultLogger: DiscordInteractionLogger = {
@@ -20,6 +25,8 @@ export async function handleDiscordInteractionRequest(
     repository: DiscordBugRepository;
     now?: Date;
     logger?: DiscordInteractionLogger;
+    scheduleAfterResponse?: (task: () => Promise<void>) => void;
+    editOriginalResponse?: typeof editOriginalDiscordInteractionResponse;
   },
 ): Promise<Response> {
   const requestId = request.headers.get("x-request-id")?.trim() || crypto.randomUUID();
@@ -50,6 +57,38 @@ export async function handleDiscordInteractionRequest(
   }
 
   try {
+    const modal = parseModalSubmit(payload);
+    if (modal && dependencies.scheduleAfterResponse) {
+      const logger = dependencies.logger ?? defaultLogger;
+      const editOriginalResponse =
+        dependencies.editOriginalResponse ?? editOriginalDiscordInteractionResponse;
+
+      dependencies.scheduleAfterResponse(async () => {
+        let content: string;
+
+        try {
+          content = await handleDiscordModalSubmission(modal, dependencies.repository);
+        } catch (error) {
+          logger.error("Discord interaction failed", { requestId, error });
+          content = `제보 처리에 실패했습니다. 문의 코드: ${requestId}`;
+        }
+
+        try {
+          await editOriginalResponse({
+            applicationId: modal.application_id,
+            interactionToken: modal.token,
+            content,
+          });
+        } catch (error) {
+          logger.error("Discord interaction follow-up failed", { requestId, error });
+        }
+      });
+
+      return json(deferredEphemeralMessage(), {
+        headers: { "x-request-id": requestId },
+      });
+    }
+
     const interactionResponse = await handleDiscordInteraction(
       payload,
       dependencies.repository,

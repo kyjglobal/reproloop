@@ -98,6 +98,8 @@ function modalPayload(projectId: string, buildId: string, overrides: Record<stri
   return {
     id: "modal-interaction-1",
     type: 5,
+    application_id: "application-1",
+    token: "interaction-token-1",
     guild_id: "guild-1",
     channel_id: "channel-1",
     member: guildMember(),
@@ -291,6 +293,44 @@ describe("Discord /bug flow", () => {
     expect(body).toEqual({
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
       data: { content: "BUG-17이 접수되었습니다.", flags: 64 },
+    });
+  });
+
+  it("acknowledges a modal before persistence and edits the deferred response", async () => {
+    const repository = mockRepository();
+    const projectId = crypto.randomUUID();
+    const buildId = crypto.randomUUID();
+    let scheduledTask: (() => Promise<void>) | undefined;
+    const editOriginalResponse = vi.fn().mockResolvedValue(undefined);
+
+    const response = await handleDiscordInteractionRequest(
+      signedRequest(modalPayload(projectId, buildId)),
+      {
+        publicKey: publicKeyHex,
+        repository,
+        now,
+        logger: { error: vi.fn() },
+        scheduleAfterResponse: (task) => {
+          scheduledTask = task;
+        },
+        editOriginalResponse,
+      },
+    );
+
+    expect(await response.json()).toEqual({
+      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { flags: 64 },
+    });
+    expect(repository.createReport).not.toHaveBeenCalled();
+
+    expect(scheduledTask).toBeDefined();
+    await scheduledTask!();
+
+    expect(repository.createReport).toHaveBeenCalledOnce();
+    expect(editOriginalResponse).toHaveBeenCalledWith({
+      applicationId: "application-1",
+      interactionToken: "interaction-token-1",
+      content: "BUG-17이 접수되었습니다.",
     });
   });
 
