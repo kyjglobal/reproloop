@@ -8,13 +8,13 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "development": "./src/index.ts",
       "import": "./dist/index.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "pnpm --filter @reproloop/shared build",
     "test": "vitest run"
   },
   "dependencies": {
