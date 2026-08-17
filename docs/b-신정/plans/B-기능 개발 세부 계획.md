@@ -96,13 +96,13 @@ B-00 착수 점검·결정 잠금
 |:---:|---|---|---|---|
 | **완료 (4/4)** | 1단계 | PR 없음 | 결정 기록, 환경 접근 확인, 기준선 검사 | A의 환경 인계 |
 | **완료 (7/7)** | 2단계 | PR 2R — `feat/report-domain-foundation` | 완전한 schema, migration, DB client·repository | 1단계 완료 |
-| **다음 작업** | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
+| **구현 완료·smoke 대기 (5/5)** | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
 | 대기 | 4단계 | PR 4 — `feat/report-detail` | 상세 API, 이력 조회, 상세 화면 | 2단계 완료, A의 인증 helper |
 | 대기 | 5단계 | PR 5 — `feat/duplicate-merge` | 대표 검색, 병합·취소 서비스/API/UI | 4단계 완료, transition route 합의 |
 | 대기 | 6단계 | PR 6 — `feat/duplicate-recipients` | 대표·중복 제보자 조회와 알림 payload 연동 | 5단계 완료, A의 Worker job 계약 |
 | 대기 | 7단계 | PR 7 — `test/core-e2e` | 자동 통합 테스트, 운영 smoke 기록 | 3~6단계와 A의 P0 기능 완료 |
 
-1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 현재 시작점은 **3단계 Discord `/bug` 접수**다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md)와 [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md)에 기록한다.
+1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md)에 기록한다.
 
 <a id="phase-1"></a>
 
@@ -275,6 +275,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DIS-01. Discord interaction 경계 모듈 작성
 
+> 상태: **완료 — 2026-08-17**
+
 - 대상 권장:
   - `apps/web/src/app/api/discord/interactions/route.ts`
   - `apps/web/src/server/discord/verify-request.ts`
@@ -286,6 +288,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DIS-02. `/bug` 명령·autocomplete·modal 흐름 구현
 
+> 상태: **구현·자동 검증 완료 — 실제 guild smoke 대기**
+
 - B-00-03에서 확정한 project·build 선택 방식을 사용
 - guild에서 접근 가능한 project만, 선택한 project의 활성 build만 후보로 반환
 - `/bug` 실행 시 5개 필드의 modal을 반환하고 custom ID를 상수로 관리
@@ -293,6 +297,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 테스트 guild에서 `/bug` 실행 → project/build 선택 → modal 표시가 성공함
 
 ### B-DIS-03. modal submit을 command로 변환
+
+> 상태: **완료 — 2026-08-17**
 
 - Discord component tree를 안전하게 순회해 5개 필드를 추출
 - Discord가 제공한 reporter/guild/channel/interaction ID와 사전 선택 project/build를 서버가 조합
@@ -302,6 +308,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DIS-04. 멱등 저장과 응답 연결
 
+> 상태: **완료 — 2026-08-17, 실제 PostgreSQL 중복 요청 검증 포함**
+
 - B-DB-06 command를 호출해 제보와 최초 event를 transaction으로 저장
 - 성공 시 `BUG-{reportNumber}`를 포함한 ephemeral 응답 반환
 - 동일 Interaction 재전송 시 기존 번호를 반환하고 2건째를 만들지 않음
@@ -309,6 +317,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 같은 요청 2회 전송 시 Discord 응답은 성공하고 DB 제보는 1건임
 
 ### B-DIS-05. Discord route 테스트
+
+> 상태: **fixture·실제 PostgreSQL 검증 완료 — 실제 guild smoke 대기**
 
 - PING 성공
 - 잘못된 서명·변조된 body·오래된 timestamp 정책 검증
