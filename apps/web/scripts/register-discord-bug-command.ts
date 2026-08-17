@@ -1,8 +1,12 @@
-import "dotenv/config";
+import { resolve } from "node:path";
+
+import { config } from "dotenv";
 
 import { discordBugApplicationCommand } from "../src/server/discord/constants";
 
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10";
+
+config({ path: resolve(process.cwd(), "../../.env"), quiet: true });
 
 function requiredEnvironmentVariable(name: string): string {
   const value = process.env[name]?.trim();
@@ -80,4 +84,7 @@ async function main() {
   }
 }
 
-await main();
+void main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : "Discord command registration failed.");
+  process.exitCode = 1;
+});
