@@ -44,6 +44,11 @@ docs/
 ### 가이드
 
 - [B 2단계 입문자용 이해와 검증 가이드](./b-신정/guides/B-2단계_입문자용_이해와_검증_가이드.md)
+- [B 3단계 Discord bug 설정과 검증 가이드](./b-신정/guides/B-3단계_Discord_bug_설정과_검증_가이드.md)
+
+### 보고서
+
+- [B 3단계 Discord bug 구현 보고서](./b-신정/reports/B-3단계_Discord_bug_구현_보고서.md)
 
 ### 보관 문서
 
