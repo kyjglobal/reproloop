@@ -6,6 +6,7 @@
     "predev": "pnpm --filter @reproloop/db... build",
     "dev": "next dev",
     "build": "next build",
+    "discord:register-bug": "tsx scripts/register-discord-bug-command.ts",
     "start": "next start",
     "lint": "eslint",
     "pretest": "pnpm --filter @reproloop/db... build",
@@ -42,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.11",
     "typescript": "^5",
     "vitest": "^4.1.10"
   },
