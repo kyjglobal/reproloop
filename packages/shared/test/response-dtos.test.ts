@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BuildListResponseSchema,
   ProjectListResponseSchema,
   ProjectSummaryResponseSchema,
   ReportListResponseSchema,
@@ -31,6 +32,14 @@ const report = {
   duplicateCount: 2,
   createdAt: "2026-08-17T01:30:00.000Z",
   version: 3,
+};
+
+const build = {
+  id: report.build.id,
+  projectId: project.id,
+  version: "1.2.0",
+  isActive: true,
+  releasedAt: "2026-08-17T00:00:00.000Z",
 };
 
 describe("project response DTOs", () => {
@@ -64,6 +73,23 @@ describe("report list response DTO", () => {
     expect(
       ReportListResponseSchema.safeParse({
         data: [{ ...report, createdAt: "not-a-date" }],
+        meta: { nextCursor: null },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("build response DTOs", () => {
+  it("accepts active build summaries", () => {
+    expect(
+      BuildListResponseSchema.parse({ data: [build], meta: { nextCursor: null } }),
+    ).toEqual({ data: [build], meta: { nextCursor: null } });
+  });
+
+  it("rejects invalid build timestamps", () => {
+    expect(
+      BuildListResponseSchema.safeParse({
+        data: [{ ...build, releasedAt: "today" }],
         meta: { nextCursor: null },
       }).success,
     ).toBe(false);
