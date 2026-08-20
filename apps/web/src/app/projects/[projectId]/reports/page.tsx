@@ -325,10 +325,20 @@ function ReportTable({ reports }: { reports: ReportListItem[] }) {
           {reports.map((report) => (
             <tr key={report.id} className="border-b border-zinc-200 last:border-b-0">
               <td className="whitespace-nowrap px-4 py-4 font-medium text-zinc-950">
-                BUG-{report.reportNumber}
+                <Link
+                  href={`/projects/${report.projectId}/reports/${report.id}`}
+                  className="hover:underline"
+                >
+                  BUG-{report.reportNumber}
+                </Link>
               </td>
               <td className="max-w-[280px] px-4 py-4 text-zinc-950">
-                <span className="line-clamp-2">{report.title}</span>
+                <Link
+                  href={`/projects/${report.projectId}/reports/${report.id}`}
+                  className="line-clamp-2 hover:underline"
+                >
+                  {report.title}
+                </Link>
               </td>
               <td className="px-4 py-4">
                 <StatusBadge status={report.status} />

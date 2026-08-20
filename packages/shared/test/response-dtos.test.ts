@@ -4,6 +4,7 @@ import {
   BuildListResponseSchema,
   ProjectListResponseSchema,
   ProjectSummaryResponseSchema,
+  ReportDetailResponseSchema,
   ReportListResponseSchema,
 } from "../src/index.js";
 
@@ -74,6 +75,57 @@ describe("report list response DTO", () => {
       ReportListResponseSchema.safeParse({
         data: [{ ...report, createdAt: "not-a-date" }],
         meta: { nextCursor: null },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("report detail response DTO", () => {
+  const detail = {
+    ...report,
+    fixedBuild: null,
+    canonicalReport: null,
+    reporterDiscordUserId: "discord-user-1",
+    actualResult: "The game stops responding.",
+    expectedResult: "The inventory should open.",
+    reproductionSteps: "Open inventory during a cutscene.",
+    platform: "Windows 11",
+    environment: null,
+    location: "Dungeon entrance",
+    frequency: "3/5",
+    attachments: [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        originalFilename: "freeze.png",
+        contentType: "image/png",
+        sizeBytes: 2048,
+        sanitizedAt: null,
+        createdAt: "2026-08-17T01:31:00.000Z",
+      },
+    ],
+    statusEvents: [
+      {
+        id: "66666666-6666-4666-8666-666666666666",
+        eventType: "report_created" as const,
+        fromStatus: null,
+        toStatus: "new" as const,
+        actor: null,
+        note: null,
+        createdAt: "2026-08-17T01:30:00.000Z",
+      },
+    ],
+    resolvedAt: null,
+    updatedAt: "2026-08-17T01:30:00.000Z",
+  };
+
+  it("accepts nullable relations and the data envelope", () => {
+    expect(ReportDetailResponseSchema.parse({ data: detail })).toEqual({ data: detail });
+  });
+
+  it("rejects fields outside the public detail contract", () => {
+    expect(
+      ReportDetailResponseSchema.safeParse({
+        data: { ...detail, discordInteractionId: "must-not-leak" },
       }).success,
     ).toBe(false);
   });

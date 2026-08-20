@@ -97,12 +97,12 @@ B-00 착수 점검·결정 잠금
 | **완료 (4/4)** | 1단계 | PR 없음 | 결정 기록, 환경 접근 확인, 기준선 검사 | A의 환경 인계 |
 | **완료 (7/7)** | 2단계 | PR 2R — `feat/report-domain-foundation` | 완전한 schema, migration, DB client·repository | 1단계 완료 |
 | **구현 완료·smoke 대기 (5/5)** | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
-| 대기 | 4단계 | PR 4 — `feat/report-detail` | 상세 API, 이력 조회, 상세 화면 | 2단계 완료, A의 인증 helper |
+| **구현 완료·smoke 대기 (5/5)** | 4단계 | PR 4 — `feat/report-detail` | 상세 API, 이력 조회, 상세 화면 | 2단계 완료, A의 인증 helper |
 | 대기 | 5단계 | PR 5 — `feat/duplicate-merge` | 대표 검색, 병합·취소 서비스/API/UI | 4단계 완료, transition route 합의 |
 | 대기 | 6단계 | PR 6 — `feat/duplicate-recipients` | 대표·중복 제보자 조회와 알림 payload 연동 | 5단계 완료, A의 Worker job 계약 |
 | 대기 | 7단계 | PR 7 — `test/core-e2e` | 자동 통합 테스트, 운영 smoke 기록 | 3~6단계와 A의 P0 기능 완료 |
 
-1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md)에 기록한다.
+1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 4단계 코드와 자동 검증은 2026-08-20에 완료했으며, 테스트 DB 통합 검사와 실제 계정 수동 smoke만 남아 있다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md), [B 4단계 제보 상세 구현 보고서](../reports/B-4단계_제보_상세_구현_보고서.md)에 기록한다.
 
 <a id="phase-1"></a>
 
@@ -343,6 +343,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DET-01. 상세 응답 계약 확정
 
+> 상태: **완료 — 2026-08-20**
+
 - 목록 기본 정보, 입력 원문, 발생 build, canonical report, fixed build, attachment metadata, status event를 포함한 응답 DTO를 정의
 - 값이 없을 수 있는 관계는 `null`, 응답 자체에서 생략할 수 있는 확장 필드만 optional로 구분
 - API 응답은 `{ data: detail }` envelope를 사용
@@ -350,6 +352,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 응답 fixture가 Zod schema를 통과하고 미등록 필드를 거부함
 
 ### B-DET-02. 상세 query 구현
+
+> 상태: **구현·fixture 검증 완료 — 실제 테스트 DB 실행 대기**
 
 - 대상 권장: `packages/db/src/reports/get-report-detail.ts`
 - 제보, build, canonical/fixed 관계, attachment metadata, 상태 이력을 조회
@@ -360,6 +364,8 @@ B-00 착수 점검·결정 잠금
 
 ### B-DET-03. 상세 API 구현
 
+> 상태: **완료 — 2026-08-20**
+
 - 경로: `GET /api/v1/reports/{reportId}`
 - A의 `requireProjectMember`를 사용해 report의 project 접근 권한 확인
 - UUID route param 검증, 401/403/404를 구분하고 공통 오류 envelope 사용
@@ -367,6 +373,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 조직 멤버만 상세를 조회하고 조직 외 사용자는 데이터 존재 여부를 추측할 수 없는 응답을 받음
 
 ### B-DET-04. 상세·상태 이력 화면 구현
+
+> 상태: **구현·production build 완료 — 실제 계정 수동 smoke 대기**
 
 - 대상: A와 합의한 `apps/web/src/app`의 report 상세 route 폴더
 - 표시: 번호·제목·상태·심각도·build·제보자·입력 5개 필드·환경·canonical/fixed 정보·시간순 이력
@@ -376,6 +384,8 @@ B-00 착수 점검·결정 잠금
 - 완료 기준: 목록에서 상세로 이동하고 새로고침해도 동일 내용을 볼 수 있음
 
 ### B-DET-05. 상세 기능 테스트
+
+> 상태: **단위·계약 검증 완료 — 실제 테스트 DB와 브라우저 smoke 대기**
 
 - API: 인증 없음, 멤버 아님, 정상 상세, 삭제 제보, 이력 정렬
 - UI: nullable 필드, 긴 본문, 이력 없음, 대표 제보 링크
