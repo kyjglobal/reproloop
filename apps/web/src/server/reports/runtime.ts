@@ -1,9 +1,16 @@
 import { getDatabase } from "../db/connection";
+import { DrizzleReportDetailQueryRepository } from "./drizzle-report-detail-query-repository";
 import { DrizzleReportListQueryRepository } from "./drizzle-report-list-query-repository";
 
-let repository: DrizzleReportListQueryRepository | undefined;
+let listRepository: DrizzleReportListQueryRepository | undefined;
+let detailRepository: DrizzleReportDetailQueryRepository | undefined;
 
 export function getReportListQueryRepository(): DrizzleReportListQueryRepository {
-  repository ??= new DrizzleReportListQueryRepository(getDatabase());
-  return repository;
+  listRepository ??= new DrizzleReportListQueryRepository(getDatabase());
+  return listRepository;
+}
+
+export function getReportDetailQueryRepository(): DrizzleReportDetailQueryRepository {
+  detailRepository ??= new DrizzleReportDetailQueryRepository(getDatabase());
+  return detailRepository;
 }
