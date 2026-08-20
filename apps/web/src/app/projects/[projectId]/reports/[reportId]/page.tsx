@@ -22,12 +22,17 @@ import { ProjectReportIdParamsSchema } from "@/server/api/params";
 import { AuthAccessError } from "@/server/auth/errors";
 import { getAuthGuards } from "@/server/auth/runtime";
 import { getReportDetailQueryRepository } from "@/server/reports/runtime";
+import {
+  buildReportDetailHref,
+  resolveReportsReturnHref,
+} from "@/server/reports/navigation";
 import { getAccessibleReportDetail } from "@/server/reports/service";
 
 export const dynamic = "force-dynamic";
 
 interface ReportDetailPageProps {
   params: Promise<{ projectId: string; reportId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const statusLabels: Record<ReportStatus, string> = {
@@ -129,7 +134,17 @@ function Timeline({ events }: { events: ReportStatusEvent[] }) {
   );
 }
 
-function ErrorState({ error, projectId }: { error: unknown; projectId: string }) {
+function ErrorState({
+  error,
+  projectId,
+  reportId,
+  reportsHref,
+}: {
+  error: unknown;
+  projectId: string;
+  reportId: string;
+  reportsHref: string;
+}) {
   const unauthenticated =
     error instanceof AuthAccessError && error.code === "UNAUTHENTICATED";
   const forbidden = error instanceof AuthAccessError && error.code === "FORBIDDEN";
@@ -160,8 +175,10 @@ function ErrorState({ error, projectId }: { error: unknown; projectId: string })
         <Link
           href={
             unauthenticated
-              ? `/api/auth/signin?callbackUrl=/projects/${projectId}/reports`
-              : `/projects/${projectId}/reports`
+              ? `/api/auth/signin?callbackUrl=${encodeURIComponent(
+                  buildReportDetailHref(projectId, reportId, reportsHref),
+                )}`
+              : reportsHref
           }
           className="mt-6 inline-flex h-10 items-center rounded-md bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800"
         >
@@ -172,12 +189,18 @@ function ErrorState({ error, projectId }: { error: unknown; projectId: string })
   );
 }
 
-function ReportDetailView({ detail }: { detail: ReportDetail }) {
+function ReportDetailView({
+  detail,
+  reportsHref,
+}: {
+  detail: ReportDetail;
+  reportsHref: string;
+}) {
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950">
       <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <Link
-          href={`/projects/${detail.projectId}/reports`}
+          href={reportsHref}
           className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-950"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
@@ -209,7 +232,11 @@ function ReportDetailView({ detail }: { detail: ReportDetail }) {
               </p>
             </div>
             <Link
-              href={`/projects/${detail.projectId}/reports/${detail.canonicalReport.id}`}
+              href={buildReportDetailHref(
+                detail.projectId,
+                detail.canonicalReport.id,
+                reportsHref,
+              )}
               className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-amber-900 hover:underline"
             >
               <Link2 className="size-4" aria-hidden="true" />
@@ -304,14 +331,19 @@ function ReportDetailView({ detail }: { detail: ReportDetail }) {
   );
 }
 
-export default async function ReportDetailPage({ params }: ReportDetailPageProps) {
+export default async function ReportDetailPage({
+  params,
+  searchParams,
+}: ReportDetailPageProps) {
   let projectId = "";
+  let reportId = "";
   let detail: ReportDetail | null = null;
   let loadError: unknown = null;
 
   try {
     const parsed = ProjectReportIdParamsSchema.parse(await params);
     projectId = parsed.projectId;
+    reportId = parsed.reportId;
     detail = await getAccessibleReportDetail(
       getAuthGuards(),
       getReportDetailQueryRepository(),
@@ -322,9 +354,18 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
     loadError = error;
   }
 
+  const query = await searchParams;
+  const returnTo = Array.isArray(query.returnTo) ? query.returnTo[0] : query.returnTo;
+  const reportsHref = resolveReportsReturnHref(projectId, returnTo);
+
   return detail ? (
-    <ReportDetailView detail={detail} />
+    <ReportDetailView detail={detail} reportsHref={reportsHref} />
   ) : (
-    <ErrorState error={loadError} projectId={projectId} />
+    <ErrorState
+      error={loadError}
+      projectId={projectId}
+      reportId={reportId}
+      reportsHref={reportsHref}
+    />
   );
 }

@@ -24,6 +24,7 @@ import { getProjectQueryRepository } from "@/server/projects/runtime";
 import { getAccessibleProject } from "@/server/projects/service";
 import { getReportListQueryRepository } from "@/server/reports/runtime";
 import { listAccessibleProjectReports } from "@/server/reports/service";
+import { buildReportDetailHref } from "@/server/reports/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -305,7 +306,13 @@ function StatusBadge({ status }: { status: ReportStatus }) {
   );
 }
 
-function ReportTable({ reports }: { reports: ReportListItem[] }) {
+function ReportTable({
+  reports,
+  reportsHref,
+}: {
+  reports: ReportListItem[];
+  reportsHref: string;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[880px] border-collapse text-left text-sm">
@@ -326,7 +333,7 @@ function ReportTable({ reports }: { reports: ReportListItem[] }) {
             <tr key={report.id} className="border-b border-zinc-200 last:border-b-0">
               <td className="whitespace-nowrap px-4 py-4 font-medium text-zinc-950">
                 <Link
-                  href={`/projects/${report.projectId}/reports/${report.id}`}
+                  href={buildReportDetailHref(report.projectId, report.id, reportsHref)}
                   className="hover:underline"
                 >
                   BUG-{report.reportNumber}
@@ -334,7 +341,7 @@ function ReportTable({ reports }: { reports: ReportListItem[] }) {
               </td>
               <td className="max-w-[280px] px-4 py-4 text-zinc-950">
                 <Link
-                  href={`/projects/${report.projectId}/reports/${report.id}`}
+                  href={buildReportDetailHref(report.projectId, report.id, reportsHref)}
                   className="line-clamp-2 hover:underline"
                 >
                   {report.title}
@@ -386,6 +393,8 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
     return <ErrorState error={error} />;
   }
 
+  const reportsHref = buildReportsHref(project.id, query);
+
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950">
       <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -422,7 +431,7 @@ export default async function ReportsPage({ params, searchParams }: ReportsPageP
           {reportPage.items.length === 0 ? (
             <EmptyReports />
           ) : (
-            <ReportTable reports={reportPage.items} />
+            <ReportTable reports={reportPage.items} reportsHref={reportsHref} />
           )}
         </div>
 
