@@ -1,8 +1,12 @@
 import type { ReportStatus, StatusEventType } from "@reproloop/shared";
 
-import type { ReportSnapshot } from "./types.js";
+import type { DuplicateHistoryEvent, ReportSnapshot } from "./types.js";
 
 export interface ReportTransaction {
+  findById(reportId: string): Promise<ReportSnapshot | null>;
+  listCanonicalAncestorIds(reportId: string): Promise<readonly string[]>;
+  findLatestDuplicateHistoryEvent(reportId: string): Promise<DuplicateHistoryEvent | null>;
+
   updateReport(input: {
     reportId: string;
     expectedVersion: number;
@@ -19,6 +23,7 @@ export interface ReportTransaction {
     toStatus: ReportStatus;
     actorId: string;
     note?: string;
+    metadata?: Record<string, unknown>;
   }): Promise<void>;
 }
 

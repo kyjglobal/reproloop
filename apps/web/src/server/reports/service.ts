@@ -1,5 +1,7 @@
 import { validateReportTransition } from "@reproloop/domain";
 import type {
+  DuplicateCandidate,
+  DuplicateCandidateQuery,
   ReportDetail,
   ReportListQuery,
   ReportTransitionResult,
@@ -8,12 +10,29 @@ import type {
 import { ApiRequestError } from "../api/errors";
 import type { AuthGuards } from "../auth/types";
 import type {
+  DuplicateCandidateQueryRepository,
   ReportDetailQueryRepository,
   ReportListPage,
   ReportListQueryRepository,
   ReportStatusTransition,
   ReportTransitionDependencies,
 } from "./types";
+
+export async function listAccessibleDuplicateCandidates(
+  guards: AuthGuards,
+  repository: DuplicateCandidateQueryRepository,
+  projectId: string,
+  targetReportId: string,
+  query: DuplicateCandidateQuery,
+): Promise<DuplicateCandidate[]> {
+  const targetProjectId = await repository.findCandidateTargetProjectId(targetReportId);
+  if (!targetProjectId || targetProjectId !== projectId) {
+    throw new ApiRequestError("NOT_FOUND", "제보를 찾을 수 없습니다.");
+  }
+
+  await guards.requireProjectMember(projectId);
+  return repository.listDuplicateCandidates({ projectId, targetReportId, query });
+}
 
 export async function listAccessibleProjectReports(
   guards: AuthGuards,

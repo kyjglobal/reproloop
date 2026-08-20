@@ -1,4 +1,6 @@
 import type {
+  DuplicateCandidate,
+  DuplicateCandidateQuery,
   ReportDetail,
   ReportListItem,
   ReportListQuery,
@@ -41,3 +43,12 @@ export type ReportTransitionHandler = (
   reportId: string,
   transition: ReportTransition,
 ) => Promise<ReportTransitionResult>;
+
+export interface DuplicateCandidateQueryRepository {
+  findCandidateTargetProjectId(targetReportId: string): Promise<string | null>;
+  listDuplicateCandidates(input: {
+    projectId: string;
+    targetReportId: string;
+    query: DuplicateCandidateQuery;
+  }): Promise<DuplicateCandidate[]>;
+}

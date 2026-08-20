@@ -28,6 +28,9 @@ const report: ReportSnapshot = {
 
 function createDependencies(reportOverride: Partial<ReportSnapshot> = {}) {
   const transaction: ReportTransaction = {
+    findById: vi.fn(async () => null),
+    listCanonicalAncestorIds: vi.fn(async () => []),
+    findLatestDuplicateHistoryEvent: vi.fn(async () => null),
     updateReport: vi.fn(async () => undefined),
     addStatusEvent: vi.fn(async () => undefined),
   };
