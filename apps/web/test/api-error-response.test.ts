@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { createApiErrorResponse, getRequestId } from "../src/server/api/error-response";
+import { parseJsonRequestBody } from "../src/server/api/params";
 import { AuthAccessError } from "../src/server/auth/errors";
 
 describe("API error responses", () => {
@@ -67,6 +68,44 @@ describe("API error responses", () => {
         requestId: "req_domain",
         fieldErrors: { reportId: ["존재하지 않는 제보입니다."] },
       },
+    });
+  });
+});
+
+describe("JSON request body parsing", () => {
+  it("parses an application/json request", async () => {
+    const request = new Request("http://localhost/api/v1/reports/test/transitions", {
+      method: "POST",
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body: '{"action":"start_investigation"}',
+    });
+
+    await expect(parseJsonRequestBody(request)).resolves.toEqual({
+      action: "start_investigation",
+    });
+  });
+
+  it("rejects a non-JSON content type", async () => {
+    const request = new Request("http://localhost/api/v1/reports/test/transitions", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "not json",
+    });
+
+    await expect(parseJsonRequestBody(request)).rejects.toMatchObject({
+      code: "UNSUPPORTED_MEDIA_TYPE",
+    });
+  });
+
+  it("rejects malformed JSON as a validation error", async () => {
+    const request = new Request("http://localhost/api/v1/reports/test/transitions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+
+    await expect(parseJsonRequestBody(request)).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
     });
   });
 });

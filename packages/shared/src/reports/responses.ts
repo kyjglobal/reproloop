@@ -5,6 +5,7 @@ import {
   createApiListResponseSchema,
 } from "../api/response.js";
 import {
+  ReportTransitionActionSchema,
   ReportSeveritySchema,
   ReportStatusSchema,
   StatusEventTypeSchema,
@@ -92,9 +93,22 @@ export const ReportDetailSchema = z.strictObject({
 
 export const ReportDetailResponseSchema = createApiDataResponseSchema(ReportDetailSchema);
 
+export const ReportTransitionResultSchema = z.strictObject({
+  reportId: z.string().uuid(),
+  action: ReportTransitionActionSchema,
+  previousStatus: ReportStatusSchema,
+  status: ReportStatusSchema,
+  version: z.number().int().nonnegative(),
+});
+
+export const ReportTransitionResponseSchema = createApiDataResponseSchema(
+  ReportTransitionResultSchema,
+);
+
 export type ReportBuildSummary = z.infer<typeof ReportBuildSummarySchema>;
 export type ReportListItem = z.infer<typeof ReportListItemSchema>;
 export type ReportReference = z.infer<typeof ReportReferenceSchema>;
 export type ReportAttachmentMetadata = z.infer<typeof ReportAttachmentMetadataSchema>;
 export type ReportStatusEvent = z.infer<typeof ReportStatusEventSchema>;
 export type ReportDetail = z.infer<typeof ReportDetailSchema>;
+export type ReportTransitionResult = z.infer<typeof ReportTransitionResultSchema>;

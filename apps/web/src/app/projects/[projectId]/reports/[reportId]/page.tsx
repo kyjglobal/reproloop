@@ -28,6 +28,8 @@ import {
 } from "@/server/reports/navigation";
 import { getAccessibleReportDetail } from "@/server/reports/service";
 
+import { ReportStatusTransitionPanel } from "./report-status-transition-panel";
+
 export const dynamic = "force-dynamic";
 
 interface ReportDetailPageProps {
@@ -244,6 +246,13 @@ function ReportDetailView({
             </Link>
           </div>
         ) : null}
+
+        <ReportStatusTransitionPanel
+          key={`${detail.status}-${detail.version}`}
+          reportId={detail.id}
+          status={detail.status}
+          version={detail.version}
+        />
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
           <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-5 sm:p-6">

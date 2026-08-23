@@ -4,4 +4,5 @@ export * from "./drizzle-report-list-query-repository";
 export * from "./navigation";
 export * from "./runtime";
 export * from "./service";
+export * from "./transition-dispatcher";
 export * from "./types";
