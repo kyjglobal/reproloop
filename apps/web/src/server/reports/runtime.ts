@@ -1,9 +1,28 @@
+import { DrizzleReportRepository } from "@reproloop/db";
+import type { ReportRepository } from "@reproloop/domain";
+
+import { getAuthGuards } from "../auth/runtime";
 import { getDatabase } from "../db/connection";
 import { DrizzleReportDetailQueryRepository } from "./drizzle-report-detail-query-repository";
 import { DrizzleReportListQueryRepository } from "./drizzle-report-list-query-repository";
 
 let listRepository: DrizzleReportListQueryRepository | undefined;
 let detailRepository: DrizzleReportDetailQueryRepository | undefined;
+let transitionRepository: DrizzleReportRepository | undefined;
+
+function getTransitionRepository(): DrizzleReportRepository {
+  transitionRepository ??= new DrizzleReportRepository(getDatabase());
+  return transitionRepository;
+}
+
+const lazyTransitionRepository: ReportRepository = {
+  findById: (reportId) => getTransitionRepository().findById(reportId),
+  listCanonicalAncestorIds: (reportId) =>
+    getTransitionRepository().listCanonicalAncestorIds(reportId),
+  listRelatedReporterDiscordUserIds: (reportId) =>
+    getTransitionRepository().listRelatedReporterDiscordUserIds(reportId),
+  transaction: (work) => getTransitionRepository().transaction(work),
+};
 
 export function getReportListQueryRepository(): DrizzleReportListQueryRepository {
   listRepository ??= new DrizzleReportListQueryRepository(getDatabase());
@@ -13,4 +32,11 @@ export function getReportListQueryRepository(): DrizzleReportListQueryRepository
 export function getReportDetailQueryRepository(): DrizzleReportDetailQueryRepository {
   detailRepository ??= new DrizzleReportDetailQueryRepository(getDatabase());
   return detailRepository;
+}
+
+export function getReportTransitionDependencies() {
+  return {
+    guards: getAuthGuards(),
+    reportRepository: lazyTransitionRepository,
+  };
 }

@@ -1,4 +1,9 @@
-import type { ReportDetail, ReportListQuery } from "@reproloop/shared";
+import { validateReportTransition } from "@reproloop/domain";
+import type {
+  ReportDetail,
+  ReportListQuery,
+  ReportTransitionResult,
+} from "@reproloop/shared";
 
 import { ApiRequestError } from "../api/errors";
 import type { AuthGuards } from "../auth/types";
@@ -6,6 +11,8 @@ import type {
   ReportDetailQueryRepository,
   ReportListPage,
   ReportListQueryRepository,
+  ReportStatusTransition,
+  ReportTransitionDependencies,
 } from "./types";
 
 export async function listAccessibleProjectReports(
@@ -38,4 +45,54 @@ export async function getAccessibleReportDetail(
   }
 
   return detail;
+}
+
+function getTransitionNote(transition: ReportStatusTransition): string | undefined {
+  if (transition.action === "request_information") {
+    return transition.message;
+  }
+
+  return transition.note;
+}
+
+export async function transitionReportStatus(
+  dependencies: ReportTransitionDependencies,
+  reportId: string,
+  transition: ReportStatusTransition,
+): Promise<ReportTransitionResult> {
+  const report = await dependencies.reportRepository.findById(reportId);
+  if (!report) {
+    throw new ApiRequestError("NOT_FOUND", "제보를 찾을 수 없습니다.");
+  }
+
+  const membership = await dependencies.guards.requireProjectMember(report.projectId);
+  const decision = validateReportTransition({
+    report,
+    actorRole: membership.role,
+    transition,
+  });
+
+  await dependencies.reportRepository.transaction(async (transaction) => {
+    await transaction.updateReport({
+      reportId,
+      expectedVersion: transition.expectedVersion,
+      status: decision.nextStatus,
+    });
+    await transaction.addStatusEvent({
+      reportId,
+      eventType: decision.eventType,
+      fromStatus: decision.previousStatus,
+      toStatus: decision.nextStatus,
+      actorId: membership.userId,
+      note: getTransitionNote(transition),
+    });
+  });
+
+  return {
+    reportId,
+    action: decision.action,
+    previousStatus: decision.previousStatus,
+    status: decision.nextStatus,
+    version: decision.nextVersion,
+  };
 }
