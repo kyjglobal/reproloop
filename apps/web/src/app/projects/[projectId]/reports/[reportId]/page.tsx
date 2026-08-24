@@ -29,6 +29,7 @@ import {
 import { getAccessibleReportDetail } from "@/server/reports/service";
 
 import { ReportStatusTransitionPanel } from "./report-status-transition-panel";
+import { ReportDuplicatePanel } from "./report-duplicate-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -194,9 +195,11 @@ function ErrorState({
 function ReportDetailView({
   detail,
   reportsHref,
+  canManageDuplicates,
 }: {
   detail: ReportDetail;
   reportsHref: string;
+  canManageDuplicates: boolean;
 }) {
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950">
@@ -252,6 +255,15 @@ function ReportDetailView({
           reportId={detail.id}
           status={detail.status}
           version={detail.version}
+        />
+
+        <ReportDuplicatePanel
+          key={`duplicate-${detail.status}-${detail.version}`}
+          projectId={detail.projectId}
+          reportId={detail.id}
+          status={detail.status}
+          version={detail.version}
+          canManageDuplicates={canManageDuplicates}
         />
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
@@ -347,18 +359,22 @@ export default async function ReportDetailPage({
   let projectId = "";
   let reportId = "";
   let detail: ReportDetail | null = null;
+  let canManageDuplicates = false;
   let loadError: unknown = null;
 
   try {
     const parsed = ProjectReportIdParamsSchema.parse(await params);
     projectId = parsed.projectId;
     reportId = parsed.reportId;
+    const guards = getAuthGuards();
     detail = await getAccessibleReportDetail(
-      getAuthGuards(),
+      guards,
       getReportDetailQueryRepository(),
       parsed.reportId,
       parsed.projectId,
     );
+    const membership = await guards.requireProjectMember(parsed.projectId);
+    canManageDuplicates = membership.role === "owner" || membership.role === "admin";
   } catch (error) {
     loadError = error;
   }
@@ -368,7 +384,11 @@ export default async function ReportDetailPage({
   const reportsHref = resolveReportsReturnHref(projectId, returnTo);
 
   return detail ? (
-    <ReportDetailView detail={detail} reportsHref={reportsHref} />
+    <ReportDetailView
+      detail={detail}
+      reportsHref={reportsHref}
+      canManageDuplicates={canManageDuplicates}
+    />
   ) : (
     <ErrorState
       error={loadError}

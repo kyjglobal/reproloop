@@ -32,6 +32,19 @@ export const ReportListItemSchema = z.strictObject({
 
 export const ReportListResponseSchema = createApiListResponseSchema(ReportListItemSchema);
 
+export const DuplicateCandidateSchema = z.strictObject({
+  id: z.string().uuid(),
+  reportNumber: z.number().int().positive(),
+  title: z.string().trim().min(1).max(200),
+  status: ReportStatusSchema.exclude(["duplicate"]),
+  build: ReportBuildSummarySchema,
+  createdAt: z.string().datetime({ offset: true }),
+});
+
+export const DuplicateCandidateListResponseSchema = createApiListResponseSchema(
+  DuplicateCandidateSchema,
+);
+
 export const ReportReferenceSchema = z.strictObject({
   id: z.string().uuid(),
   reportNumber: z.number().int().positive(),
@@ -106,6 +119,7 @@ export const ReportTransitionResponseSchema = createApiDataResponseSchema(
 );
 
 export type ReportBuildSummary = z.infer<typeof ReportBuildSummarySchema>;
+export type DuplicateCandidate = z.infer<typeof DuplicateCandidateSchema>;
 export type ReportListItem = z.infer<typeof ReportListItemSchema>;
 export type ReportReference = z.infer<typeof ReportReferenceSchema>;
 export type ReportAttachmentMetadata = z.infer<typeof ReportAttachmentMetadataSchema>;

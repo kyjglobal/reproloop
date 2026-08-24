@@ -52,7 +52,7 @@
 | DB client·repository 구현 | 미구현 | 환경변수를 import 시점에 읽지 않는 factory와 실제 Drizzle repository가 필요하다. |
 | Discord `/bug` | 미구현 | 서명 검증, PING, modal, 멱등 저장을 구현한다. |
 | 제보 상세·상태 이력 화면 | 미구현 | A의 인증 helper와 프로젝트 접근 검사를 사용한다. |
-| 중복 병합·취소 API/UI | 미구현 | 기존 Domain 판단 함수와 낙관적 잠금을 사용한다. |
+| 중복 병합·취소 API/UI | 구현 완료·smoke 대기 | 기존 Domain 판단 함수와 낙관적 잠금을 재사용했으며, 배포 후 owner/admin 실제 계정 smoke를 남겨 둔다. |
 | 대표·중복 제보자 알림 대상 DB 조회 | 미구현 | B가 조회·중복 제거까지 제공하고 A의 알림 생성·Worker에 인계한다. |
 | 핵심 E2E·운영 Discord 검증 | 미구현 | 로컬 자동화 후 실제 Discord·Railway smoke test를 수행한다. |
 
@@ -98,11 +98,11 @@ B-00 착수 점검·결정 잠금
 | **완료 (7/7)** | 2단계 | PR 2R — `feat/report-domain-foundation` | 완전한 schema, migration, DB client·repository | 1단계 완료 |
 | **구현 완료·smoke 대기 (5/5)** | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
 | **구현 완료·smoke 대기 (5/5)** | 4단계 | PR 4 — `feat/report-detail` | 상세 API, 이력 조회, 상세 화면 | 2단계 완료, A의 인증 helper |
-| 대기 | 5단계 | PR 5 — `feat/duplicate-merge` | 대표 검색, 병합·취소 서비스/API/UI | 4단계 완료, transition route 합의 |
+| **구현 완료·smoke 대기 (6/6)** | 5단계 | PR 5 — `feat/duplicate-merge` | 대표 검색, 병합·취소 서비스/API/UI | 4단계 완료, transition route 합의 |
 | 대기 | 6단계 | PR 6 — `feat/duplicate-recipients` | 대표·중복 제보자 조회와 알림 payload 연동 | 5단계 완료, A의 Worker job 계약 |
 | 대기 | 7단계 | PR 7 — `test/core-e2e` | 자동 통합 테스트, 운영 smoke 기록 | 3~6단계와 A의 P0 기능 완료 |
 
-1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 4단계 코드와 자동 검증은 2026-08-20에 완료했으며, 테스트 DB 통합 검사와 실제 계정 수동 smoke만 남아 있다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md), [B 4단계 제보 상세 구현 보고서](../reports/B-4단계_제보_상세_구현_보고서.md)에 기록한다.
+1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 4단계 코드와 자동 검증은 2026-08-20에 완료했으며, 테스트 DB 통합 검사와 실제 계정 수동 smoke만 남아 있다. 5단계 B-DUP-01~06 코드는 2026-08-24에 완료했고 타입 검사, 단위·회귀 테스트, lint와 production build를 통과했으며, PR 병합·Railway 재배포 후 owner/admin 실제 계정 smoke가 남아 있다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md), [B 4단계 제보 상세 구현 보고서](../reports/B-4단계_제보_상세_구현_보고서.md)에 기록한다.
 
 <a id="phase-1"></a>
 
@@ -404,7 +404,7 @@ B-00 착수 점검·결정 잠금
 | 주요 산출물 | 대표 검색, 병합·취소 service/API/UI |
 | 종료 조건 | 정상 병합·취소와 자기 참조·순환·stale version 거부가 확인된다. |
 
-### B-DUP-01. 대표 제보 검색 query 구현
+### B-DUP-01. 대표 제보 검색 query 구현 — ✅ 완료
 
 - 같은 프로젝트 안에서 검색하고 자기 자신과 soft-deleted report를 제외
 - canonical 후보는 `duplicate`가 아닌 제보만 반환
@@ -412,7 +412,7 @@ B-00 착수 점검·결정 잠금
 - A의 목록 API를 재사용할 수 있으면 query 옵션만 합의하고, 불가능하면 상세 화면 전용 endpoint를 계약에 추가
 - 완료 기준: 다른 프로젝트·중복·삭제·자기 자신이 후보에 나타나지 않음
 
-### B-DUP-02. 병합 transaction service 구현
+### B-DUP-02. 병합 transaction service 구현 — ✅ 완료
 
 - target, canonical, actor role, version을 읽고 `validateDuplicateMerge` 호출
 - transaction 안에서 version 조건부 update와 `duplicate_merged` event insert
@@ -420,14 +420,14 @@ B-00 착수 점검·결정 잠금
 - 검증과 update 사이 경쟁이 발생하면 조건부 update 실패를 `CONFLICT`로 변환
 - 완료 기준: 자기 참조, 프로젝트 불일치, 중복을 대표로 선택, 순환, stale version, member 권한이 모두 DB 변경 없이 거부됨
 
-### B-DUP-03. 병합 취소 transaction service 구현
+### B-DUP-03. 병합 취소 transaction service 구현 — ✅ 완료
 
 - 가장 최근의 유효한 `duplicate_merged` event에서 병합 직전 상태를 읽음
 - client가 복원 상태를 지정하지 못하게 함
 - `validateDuplicateUnmerge` 후 status와 canonical ID를 원자적으로 복원하고 `duplicate_unmerged` event 추가
 - 완료 기준: 직전 상태 복원, stale version, 이력 누락, 이미 취소된 제보 테스트 통과
 
-### B-DUP-04. transition API에 중복 action 연결
+### B-DUP-04. transition API에 중복 action 연결 — ✅ 완료
 
 동시 수정 충돌을 피하기 위해 route와 handler를 분리한다.
 
@@ -437,7 +437,7 @@ B-00 착수 점검·결정 잠금
 - B의 PR이 먼저 준비되면 handler를 먼저 병합하고 route 등록은 A의 dispatcher 병합 뒤 작은 후속 커밋으로 처리
 - 완료 기준: 하나의 endpoint가 Shared의 `ReportTransitionSchema`를 사용하며 route에 병합 규칙이 복제되지 않음
 
-### B-DUP-05. 대표 검색·병합 UI 구현
+### B-DUP-05. 대표 검색·병합 UI 구현 — ✅ 완료
 
 - 상세 화면에서 owner/admin에게만 병합 control 표시
 - 검색 결과에서 후보를 선택하고 현재 `version`과 함께 요청
@@ -446,7 +446,7 @@ B-00 착수 점검·결정 잠금
 - member에게 버튼을 숨기되 서버 권한 검사를 반드시 유지
 - 완료 기준: 상세 화면에서 검색 → 확인 → 병합이 가능하고 잘못된 대상·경쟁 수정 오류가 이해 가능한 메시지로 표시됨
 
-### B-DUP-06. 병합 취소 UI 구현
+### B-DUP-06. 병합 취소 UI 구현 — ✅ 완료
 
 - 원본 계획상 일정 지연 시 잘릴 수 있는 첫 B UI이므로 backend 완성 후 착수
 - duplicate 상세에서 owner/admin에게만 취소 버튼과 확인 dialog 제공

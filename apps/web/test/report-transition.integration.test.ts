@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { AuthGuards } from "../src/server/auth/types";
 import { transitionReportStatus } from "../src/server/reports/service";
+import { dispatchReportTransition } from "../src/server/reports/transition-dispatcher";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = testDatabaseUrl ? describe : describe.skip;
@@ -26,6 +27,8 @@ describeWithDatabase("report transition database integration", () => {
   let guildId: string;
   let projectId: string;
   let reportId: string;
+  let duplicateTargetId: string;
+  let canonicalReportId: string;
   const suffix = crypto.randomUUID();
 
   beforeAll(async () => {
@@ -92,6 +95,42 @@ describeWithDatabase("report transition database integration", () => {
       discordInteractionId: `transition-interaction-${suffix}`,
     });
     reportId = created.id;
+
+    const duplicateTarget = await createBugReport(database, {
+      projectId,
+      buildId: build!.id,
+      title: "Duplicate transition target",
+      severity: "medium",
+      actualResult: "The game freezes.",
+      expectedResult: "The game stays responsive.",
+      reproductionSteps: "Open the inventory twice.",
+      platform: "Windows 11",
+      frequency: "Always",
+      reporterDiscordUserId: `duplicate-target-reporter-${suffix}`,
+      reporterDisplayName: "Duplicate Target Reporter",
+      discordGuildId: `transition-guild-${suffix}`,
+      sourceChannelId: `transition-channel-${suffix}`,
+      discordInteractionId: `duplicate-target-interaction-${suffix}`,
+    });
+    duplicateTargetId = duplicateTarget.id;
+
+    const canonical = await createBugReport(database, {
+      projectId,
+      buildId: build!.id,
+      title: "Canonical transition report",
+      severity: "high",
+      actualResult: "The game freezes.",
+      expectedResult: "The game stays responsive.",
+      reproductionSteps: "Open the inventory twice.",
+      platform: "Windows 11",
+      frequency: "Always",
+      reporterDiscordUserId: `canonical-reporter-${suffix}`,
+      reporterDisplayName: "Canonical Reporter",
+      discordGuildId: `transition-guild-${suffix}`,
+      sourceChannelId: `transition-channel-${suffix}`,
+      discordInteractionId: `canonical-interaction-${suffix}`,
+    });
+    canonicalReportId = canonical.id;
   });
 
   afterAll(async () => {
@@ -150,6 +189,70 @@ describeWithDatabase("report transition database integration", () => {
       fromStatus: "new",
       toStatus: "investigating",
       note: "통합 테스트 조사 시작",
+    });
+  });
+
+  it("dispatches duplicate merge and unmerge through the shared transition boundary", async () => {
+    const guards = {
+      requireProjectMember: vi.fn(async () => ({
+        projectId,
+        organizationId,
+        userId,
+        role: "admin" as const,
+      })),
+    } as unknown as AuthGuards;
+    const dependencies = {
+      guards,
+      reportRepository: new DrizzleReportRepository(database),
+    };
+
+    await dispatchReportTransition(dependencies, duplicateTargetId, {
+      action: "merge_duplicate",
+      canonicalReportId,
+      expectedVersion: 0,
+    });
+
+    const [merged] = await database
+      .select({
+        status: bugReports.status,
+        canonicalReportId: bugReports.canonicalReportId,
+        version: bugReports.version,
+      })
+      .from(bugReports)
+      .where(eq(bugReports.id, duplicateTargetId));
+    expect(merged).toEqual({
+      status: "duplicate",
+      canonicalReportId,
+      version: 1,
+    });
+
+    await dispatchReportTransition(dependencies, duplicateTargetId, {
+      action: "unmerge_duplicate",
+      expectedVersion: 1,
+    });
+
+    const [restored] = await database
+      .select({
+        status: bugReports.status,
+        canonicalReportId: bugReports.canonicalReportId,
+        version: bugReports.version,
+      })
+      .from(bugReports)
+      .where(eq(bugReports.id, duplicateTargetId));
+    const duplicateEvents = await database
+      .select({ eventType: statusEvents.eventType, metadata: statusEvents.metadata })
+      .from(statusEvents)
+      .where(
+        and(
+          eq(statusEvents.reportId, duplicateTargetId),
+          eq(statusEvents.eventType, "duplicate_merged"),
+        ),
+      );
+
+    expect(restored).toEqual({ status: "new", canonicalReportId: null, version: 2 });
+    expect(duplicateEvents).toContainEqual({
+      eventType: "duplicate_merged",
+      metadata: { previousStatus: "new", canonicalReportId },
     });
   });
 });

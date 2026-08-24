@@ -18,6 +18,19 @@ export interface ReportSnapshot {
   deletedAt: Date | null;
 }
 
+export interface DuplicateHistoryEvent {
+  eventType: "duplicate_merged" | "duplicate_unmerged";
+  metadata: Readonly<Record<string, unknown>> | null;
+}
+
+export interface DuplicateMutationResult {
+  reportId: string;
+  previousStatus: ReportStatus;
+  nextStatus: ReportStatus;
+  canonicalReportId: string | null;
+  version: number;
+}
+
 export interface ReportTransitionInput {
   report: ReportSnapshot;
   actorRole: OrganizationRole;

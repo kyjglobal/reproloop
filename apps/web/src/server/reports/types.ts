@@ -1,4 +1,6 @@
 import type {
+  DuplicateCandidate,
+  DuplicateCandidateQuery,
   ReportDetail,
   ReportListItem,
   ReportListQuery,
@@ -36,8 +38,22 @@ export type ReportStatusTransition = Exclude<
   { action: "merge_duplicate" | "unmerge_duplicate" | "mark_fixed" }
 >;
 
+export type ReportDuplicateTransition = Extract<
+  ReportTransition,
+  { action: "merge_duplicate" | "unmerge_duplicate" }
+>;
+
 export type ReportTransitionHandler = (
   dependencies: ReportTransitionDependencies,
   reportId: string,
   transition: ReportTransition,
 ) => Promise<ReportTransitionResult>;
+
+export interface DuplicateCandidateQueryRepository {
+  findCandidateTargetProjectId(targetReportId: string): Promise<string | null>;
+  listDuplicateCandidates(input: {
+    projectId: string;
+    targetReportId: string;
+    query: DuplicateCandidateQuery;
+  }): Promise<DuplicateCandidate[]>;
+}

@@ -22,3 +22,10 @@ export const ReportListQuerySchema = z.strictObject({
 });
 
 export type ReportListQuery = z.infer<typeof ReportListQuerySchema>;
+
+export const DuplicateCandidateQuerySchema = z.strictObject({
+  search: z.string().trim().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(25).default(10),
+});
+
+export type DuplicateCandidateQuery = z.infer<typeof DuplicateCandidateQuerySchema>;

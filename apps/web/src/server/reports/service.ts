@@ -1,5 +1,11 @@
-import { validateReportTransition } from "@reproloop/domain";
+import {
+  mergeDuplicateReport,
+  unmergeDuplicateReport,
+  validateReportTransition,
+} from "@reproloop/domain";
 import type {
+  DuplicateCandidate,
+  DuplicateCandidateQuery,
   ReportDetail,
   ReportListQuery,
   ReportTransitionResult,
@@ -8,12 +14,30 @@ import type {
 import { ApiRequestError } from "../api/errors";
 import type { AuthGuards } from "../auth/types";
 import type {
+  DuplicateCandidateQueryRepository,
   ReportDetailQueryRepository,
   ReportListPage,
   ReportListQueryRepository,
+  ReportDuplicateTransition,
   ReportStatusTransition,
   ReportTransitionDependencies,
 } from "./types";
+
+export async function listAccessibleDuplicateCandidates(
+  guards: AuthGuards,
+  repository: DuplicateCandidateQueryRepository,
+  projectId: string,
+  targetReportId: string,
+  query: DuplicateCandidateQuery,
+): Promise<DuplicateCandidate[]> {
+  const targetProjectId = await repository.findCandidateTargetProjectId(targetReportId);
+  if (!targetProjectId || targetProjectId !== projectId) {
+    throw new ApiRequestError("NOT_FOUND", "제보를 찾을 수 없습니다.");
+  }
+
+  await guards.requireProjectMember(projectId);
+  return repository.listDuplicateCandidates({ projectId, targetReportId, query });
+}
 
 export async function listAccessibleProjectReports(
   guards: AuthGuards,
@@ -94,5 +118,40 @@ export async function transitionReportStatus(
     previousStatus: decision.previousStatus,
     status: decision.nextStatus,
     version: decision.nextVersion,
+  };
+}
+
+export async function transitionDuplicateReport(
+  dependencies: ReportTransitionDependencies,
+  reportId: string,
+  transition: ReportDuplicateTransition,
+): Promise<ReportTransitionResult> {
+  const report = await dependencies.reportRepository.findById(reportId);
+  if (!report) {
+    throw new ApiRequestError("NOT_FOUND", "제보를 찾을 수 없습니다.");
+  }
+
+  const membership = await dependencies.guards.requireProjectMember(report.projectId);
+  const commonCommand = {
+    targetReportId: reportId,
+    actorId: membership.userId,
+    actorRole: membership.role,
+    expectedVersion: transition.expectedVersion,
+    note: transition.note,
+  };
+  const result =
+    transition.action === "merge_duplicate"
+      ? await mergeDuplicateReport(dependencies.reportRepository, {
+          ...commonCommand,
+          canonicalReportId: transition.canonicalReportId,
+        })
+      : await unmergeDuplicateReport(dependencies.reportRepository, commonCommand);
+
+  return {
+    reportId,
+    action: transition.action,
+    previousStatus: result.previousStatus,
+    status: result.nextStatus,
+    version: result.version,
   };
 }

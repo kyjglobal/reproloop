@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ReportDomainError } from "@reproloop/domain";
+import {
+  mergeDuplicateReport,
+  ReportDomainError,
+  unmergeDuplicateReport,
+} from "@reproloop/domain";
 import type { CreateBugReportCommand } from "@reproloop/shared";
 
 import {
@@ -210,5 +214,53 @@ describeWithDatabase("report persistence integration", () => {
 
     const snapshot = await repository.findById(created.id);
     expect(snapshot).toMatchObject({ status: "investigating", version: 1 });
+  });
+
+  it("merges and unmerges using the status stored in event metadata", async () => {
+    const target = await createBugReport(
+      database,
+      createCommand(`interaction-${crypto.randomUUID()}`),
+    );
+    const canonical = await createBugReport(
+      database,
+      createCommand(`interaction-${crypto.randomUUID()}`),
+    );
+    const repository = new DrizzleReportRepository(database);
+
+    await mergeDuplicateReport(repository, {
+      targetReportId: target.id,
+      canonicalReportId: canonical.id,
+      actorId: userId,
+      actorRole: "admin",
+      expectedVersion: 0,
+    });
+
+    expect(await repository.findById(target.id)).toMatchObject({
+      status: "duplicate",
+      canonicalReportId: canonical.id,
+      version: 1,
+    });
+
+    const events = await database
+      .select({ eventType: statusEvents.eventType, metadata: statusEvents.metadata })
+      .from(statusEvents)
+      .where(eq(statusEvents.reportId, target.id));
+
+    expect(events).toContainEqual({
+      eventType: "duplicate_merged",
+      metadata: { previousStatus: "new", canonicalReportId: canonical.id },
+    });
+    await unmergeDuplicateReport(repository, {
+      targetReportId: target.id,
+      actorId: userId,
+      actorRole: "owner",
+      expectedVersion: 1,
+    });
+
+    expect(await repository.findById(target.id)).toMatchObject({
+      status: "new",
+      canonicalReportId: null,
+      version: 2,
+    });
   });
 });
