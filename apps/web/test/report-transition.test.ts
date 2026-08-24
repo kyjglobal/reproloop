@@ -15,6 +15,7 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const organizationId = "22222222-2222-4222-8222-222222222222";
 const projectId = "33333333-3333-4333-8333-333333333333";
 const reportId = "44444444-4444-4444-8444-444444444444";
+const canonicalReportId = "55555555-5555-4555-8555-555555555555";
 
 const report: ReportSnapshot = {
   id: reportId,
@@ -27,15 +28,26 @@ const report: ReportSnapshot = {
 };
 
 function createDependencies(reportOverride: Partial<ReportSnapshot> = {}) {
+  const targetReport = { ...report, ...reportOverride };
+  const canonicalReport: ReportSnapshot = {
+    ...report,
+    id: canonicalReportId,
+    version: 0,
+  };
   const transaction: ReportTransaction = {
-    findById: vi.fn(async () => null),
+    findById: vi.fn(async (id) =>
+      id === reportId ? targetReport : id === canonicalReportId ? canonicalReport : null,
+    ),
     listCanonicalAncestorIds: vi.fn(async () => []),
-    findLatestDuplicateHistoryEvent: vi.fn(async () => null),
+    findLatestDuplicateHistoryEvent: vi.fn(async () => ({
+      eventType: "duplicate_merged" as const,
+      metadata: { previousStatus: "new" },
+    })),
     updateReport: vi.fn(async () => undefined),
     addStatusEvent: vi.fn(async () => undefined),
   };
   const reportRepository: ReportRepository = {
-    findById: vi.fn(async () => ({ ...report, ...reportOverride })),
+    findById: vi.fn(async () => targetReport),
     listCanonicalAncestorIds: vi.fn(async () => []),
     listRelatedReporterDiscordUserIds: vi.fn(async () => []),
     transaction: vi.fn(async (work) => work(transaction)),
@@ -45,7 +57,7 @@ function createDependencies(reportOverride: Partial<ReportSnapshot> = {}) {
       projectId,
       organizationId,
       userId,
-      role: "member" as const,
+      role: "admin" as const,
     })),
   } as unknown as AuthGuards;
 
@@ -160,24 +172,72 @@ describe("report transition dispatcher", () => {
     ).resolves.toMatchObject({ status: "investigating", version: 3 });
   });
 
-  it.each(["merge_duplicate", "unmerge_duplicate"] as const)(
-    "keeps %s behind the B handler boundary",
-    async (action) => {
-      const { dependencies, reportRepository } = createDependencies();
+  it("routes merge_duplicate to the B transaction service", async () => {
+    const { dependencies, transaction } = createDependencies();
 
-      const transition =
-        action === "merge_duplicate"
-          ? {
-              action,
-              canonicalReportId: "55555555-5555-4555-8555-555555555555",
-              expectedVersion: 2,
-            }
-          : { action, expectedVersion: 2 };
+    await expect(
+      dispatchReportTransition(dependencies, reportId, {
+        action: "merge_duplicate",
+        canonicalReportId,
+        expectedVersion: 2,
+      }),
+    ).resolves.toEqual({
+      reportId,
+      action: "merge_duplicate",
+      previousStatus: "new",
+      status: "duplicate",
+      version: 3,
+    });
+    expect(transaction.updateReport).toHaveBeenCalledWith({
+      reportId,
+      expectedVersion: 2,
+      status: "duplicate",
+      canonicalReportId,
+    });
+  });
 
-      await expect(
-        dispatchReportTransition(dependencies, reportId, transition),
-      ).rejects.toMatchObject({ code: "INVALID_STATUS_TRANSITION" });
-      expect(reportRepository.findById).not.toHaveBeenCalled();
-    },
-  );
+  it("routes unmerge_duplicate and restores the event-recorded status", async () => {
+    const { dependencies, transaction } = createDependencies({
+      status: "duplicate",
+      canonicalReportId,
+    });
+
+    await expect(
+      dispatchReportTransition(dependencies, reportId, {
+        action: "unmerge_duplicate",
+        expectedVersion: 2,
+      }),
+    ).resolves.toMatchObject({
+      action: "unmerge_duplicate",
+      previousStatus: "duplicate",
+      status: "new",
+      version: 3,
+    });
+    expect(transaction.updateReport).toHaveBeenCalledWith({
+      reportId,
+      expectedVersion: 2,
+      status: "new",
+      canonicalReportId: null,
+    });
+  });
+
+  it("keeps duplicate mutations forbidden for a member", async () => {
+    const { dependencies, guards, reportRepository } = createDependencies();
+    vi.mocked(guards.requireProjectMember).mockResolvedValue({
+      projectId,
+      organizationId,
+      userId,
+      role: "member",
+    });
+
+    await expect(
+      dispatchReportTransition(dependencies, reportId, {
+        action: "merge_duplicate",
+        canonicalReportId,
+        expectedVersion: 2,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(reportRepository.transaction).toHaveBeenCalledOnce();
+    expect(dependencies.reportRepository.findById).toHaveBeenCalledWith(reportId);
+  });
 });

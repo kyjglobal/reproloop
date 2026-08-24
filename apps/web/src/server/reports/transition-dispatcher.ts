@@ -1,8 +1,9 @@
 import type { ReportTransition } from "@reproloop/shared";
 
 import { ApiRequestError } from "../api/errors";
-import { transitionReportStatus } from "./service";
+import { transitionDuplicateReport, transitionReportStatus } from "./service";
 import type {
+  ReportDuplicateTransition,
   ReportStatusTransition,
   ReportTransitionDependencies,
   ReportTransitionHandler,
@@ -16,6 +17,12 @@ const STATUS_ACTIONS = new Set<ReportTransition["action"]>([
 
 function isStatusTransition(transition: ReportTransition): transition is ReportStatusTransition {
   return STATUS_ACTIONS.has(transition.action);
+}
+
+function isDuplicateTransition(
+  transition: ReportTransition,
+): transition is ReportDuplicateTransition {
+  return transition.action === "merge_duplicate" || transition.action === "unmerge_duplicate";
 }
 
 export const handleStatusTransition: ReportTransitionHandler = (
@@ -33,6 +40,21 @@ export const handleStatusTransition: ReportTransitionHandler = (
   return transitionReportStatus(dependencies, reportId, transition);
 };
 
+export const handleDuplicateTransition: ReportTransitionHandler = (
+  dependencies,
+  reportId,
+  transition,
+) => {
+  if (!isDuplicateTransition(transition)) {
+    throw new ApiRequestError(
+      "INVALID_STATUS_TRANSITION",
+      "중복 병합 또는 병합 취소 요청이 필요합니다.",
+    );
+  }
+
+  return transitionDuplicateReport(dependencies, reportId, transition);
+};
+
 export async function dispatchReportTransition(
   dependencies: ReportTransitionDependencies,
   reportId: string,
@@ -45,10 +67,7 @@ export async function dispatchReportTransition(
       return handleStatusTransition(dependencies, reportId, transition);
     case "merge_duplicate":
     case "unmerge_duplicate":
-      throw new ApiRequestError(
-        "INVALID_STATUS_TRANSITION",
-        "중복 병합 기능은 B 담당 핸들러 연결 후 사용할 수 있습니다.",
-      );
+      return handleDuplicateTransition(dependencies, reportId, transition);
     case "mark_fixed":
       throw new ApiRequestError(
         "INVALID_STATUS_TRANSITION",
