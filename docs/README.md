@@ -33,6 +33,7 @@ docs/
 - [Day 5 제보 목록 UI 입문자 가이드](./a-용준/guides/A-Day5_제보_목록_UI_입문자_가이드.md)
 - [Day 6 제보 목록 상세 통합 입문자 가이드](./a-용준/guides/A-Day6_제보_목록_상세_통합_입문자_가이드.md)
 - [Day 7 제보 상태 변경 API UI 입문자 가이드](./a-용준/guides/A-Day7_제보_상태_변경_API_UI_입문자_가이드.md)
+- [Day 8 수정 완료 알림 Worker 입문자 가이드](./a-용준/guides/A-Day8_수정_완료_알림_Worker_입문자_가이드.md)
 
 ### 보관 문서
 

@@ -83,6 +83,9 @@ importers:
       next-auth:
         specifier: ^4.24.15
         version: 4.24.15(next@16.3.0(@babel/core@7.29.7)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      pg-boss:
+        specifier: ^12.27.0
+        version: 12.27.0
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -144,9 +147,18 @@ importers:
 
   apps/worker:
     dependencies:
+      '@reproloop/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@reproloop/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.21.0)(pg@8.22.0)(postgres@3.4.9)
       pg-boss:
         specifier: ^12.27.0
         version: 12.27.0
@@ -2524,6 +2536,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'

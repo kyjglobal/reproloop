@@ -1,4 +1,5 @@
 import type {
+  BuildSummary,
   ReportDetail,
   ReportSeverity,
   ReportStatus,
@@ -21,6 +22,8 @@ import { ApiRequestError } from "@/server/api/errors";
 import { ProjectReportIdParamsSchema } from "@/server/api/params";
 import { AuthAccessError } from "@/server/auth/errors";
 import { getAuthGuards } from "@/server/auth/runtime";
+import { getBuildQueryRepository } from "@/server/builds/runtime";
+import { listAccessibleProjectBuilds } from "@/server/builds/service";
 import { getReportDetailQueryRepository } from "@/server/reports/runtime";
 import {
   buildReportDetailHref,
@@ -196,10 +199,12 @@ function ReportDetailView({
   detail,
   reportsHref,
   canManageDuplicates,
+  builds,
 }: {
   detail: ReportDetail;
   reportsHref: string;
   canManageDuplicates: boolean;
+  builds: BuildSummary[];
 }) {
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950">
@@ -255,6 +260,8 @@ function ReportDetailView({
           reportId={detail.id}
           status={detail.status}
           version={detail.version}
+          builds={builds}
+          canMarkFixed={canManageDuplicates}
         />
 
         <ReportDuplicatePanel
@@ -360,6 +367,7 @@ export default async function ReportDetailPage({
   let reportId = "";
   let detail: ReportDetail | null = null;
   let canManageDuplicates = false;
+  let builds: BuildSummary[] = [];
   let loadError: unknown = null;
 
   try {
@@ -375,6 +383,13 @@ export default async function ReportDetailPage({
     );
     const membership = await guards.requireProjectMember(parsed.projectId);
     canManageDuplicates = membership.role === "owner" || membership.role === "admin";
+    if (detail.status === "reproduced" && canManageDuplicates) {
+      builds = await listAccessibleProjectBuilds(
+        guards,
+        getBuildQueryRepository(),
+        parsed.projectId,
+      );
+    }
   } catch (error) {
     loadError = error;
   }
@@ -388,6 +403,7 @@ export default async function ReportDetailPage({
       detail={detail}
       reportsHref={reportsHref}
       canManageDuplicates={canManageDuplicates}
+      builds={builds}
     />
   ) : (
     <ErrorState

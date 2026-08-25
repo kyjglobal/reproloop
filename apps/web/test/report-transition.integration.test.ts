@@ -6,6 +6,7 @@ import {
   discordGuilds,
   gameProjects,
   organizations,
+  notifications,
   statusEvents,
   users,
 } from "@reproloop/db/schema";
@@ -27,8 +28,10 @@ describeWithDatabase("report transition database integration", () => {
   let guildId: string;
   let projectId: string;
   let reportId: string;
+  let buildId: string;
   let duplicateTargetId: string;
   let canonicalReportId: string;
+  let relatedReportId: string;
   const suffix = crypto.randomUUID();
 
   beforeAll(async () => {
@@ -77,6 +80,7 @@ describeWithDatabase("report transition database integration", () => {
       .insert(builds)
       .values({ projectId, version: `transition-build-${suffix}` })
       .returning({ id: builds.id });
+    buildId = build!.id;
 
     const created = await createBugReport(database, {
       projectId,
@@ -131,6 +135,24 @@ describeWithDatabase("report transition database integration", () => {
       discordInteractionId: `canonical-interaction-${suffix}`,
     });
     canonicalReportId = canonical.id;
+
+    const related = await createBugReport(database, {
+      projectId,
+      buildId,
+      title: "Related fixed notification report",
+      severity: "medium",
+      actualResult: "The game freezes.",
+      expectedResult: "The game stays responsive.",
+      reproductionSteps: "Open the inventory three times.",
+      platform: "Windows 11",
+      frequency: "Always",
+      reporterDiscordUserId: `related-reporter-${suffix}`,
+      reporterDisplayName: "Related Reporter",
+      discordGuildId: `transition-guild-${suffix}`,
+      sourceChannelId: `transition-channel-${suffix}`,
+      discordInteractionId: `related-interaction-${suffix}`,
+    });
+    relatedReportId = related.id;
   });
 
   afterAll(async () => {
@@ -254,5 +276,72 @@ describeWithDatabase("report transition database integration", () => {
       eventType: "duplicate_merged",
       metadata: { previousStatus: "new", canonicalReportId },
     });
+  });
+
+  it("commits fixed status, notifications, and queue jobs together", async () => {
+    const guards = {
+      requireProjectMember: vi.fn(async () => ({
+        projectId,
+        organizationId,
+        userId,
+        role: "admin" as const,
+      })),
+    } as unknown as AuthGuards;
+    const enqueuedNotificationIds: string[] = [];
+    const repository = new DrizzleReportRepository(database, async (_transaction, job) => {
+      enqueuedNotificationIds.push(job.notificationId);
+    });
+    const dependencies = { guards, reportRepository: repository };
+
+    await dispatchReportTransition(dependencies, relatedReportId, {
+      action: "merge_duplicate",
+      canonicalReportId,
+      expectedVersion: 0,
+    });
+    await dispatchReportTransition(dependencies, canonicalReportId, {
+      action: "mark_reproduced",
+      expectedVersion: 0,
+    });
+    await dispatchReportTransition(dependencies, canonicalReportId, {
+      action: "mark_fixed",
+      fixedBuildId: buildId,
+      note: "통합 테스트 수정 완료",
+      expectedVersion: 1,
+    });
+
+    const [fixedReport] = await database
+      .select({
+        status: bugReports.status,
+        fixedBuildId: bugReports.fixedBuildId,
+        resolvedAt: bugReports.resolvedAt,
+        version: bugReports.version,
+      })
+      .from(bugReports)
+      .where(eq(bugReports.id, canonicalReportId));
+    const createdNotifications = await database
+      .select({
+        id: notifications.id,
+        recipientDiscordUserId: notifications.recipientDiscordUserId,
+        status: notifications.status,
+        type: notifications.type,
+      })
+      .from(notifications)
+      .where(eq(notifications.reportId, canonicalReportId));
+
+    expect(fixedReport).toMatchObject({
+      status: "fixed",
+      fixedBuildId: buildId,
+      version: 2,
+    });
+    expect(fixedReport?.resolvedAt).toBeInstanceOf(Date);
+    expect(createdNotifications).toHaveLength(2);
+    expect(createdNotifications.map((item) => item.recipientDiscordUserId).sort()).toEqual(
+      [`canonical-reporter-${suffix}`, `related-reporter-${suffix}`].sort(),
+    );
+    expect(createdNotifications.every((item) => item.status === "queued")).toBe(true);
+    expect(createdNotifications.every((item) => item.type === "report_fixed")).toBe(true);
+    expect(enqueuedNotificationIds.sort()).toEqual(
+      createdNotifications.map((item) => item.id).sort(),
+    );
   });
 });
