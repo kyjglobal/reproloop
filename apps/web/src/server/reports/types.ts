@@ -38,6 +38,8 @@ export type ReportStatusTransition = Exclude<
   { action: "merge_duplicate" | "unmerge_duplicate" | "mark_fixed" }
 >;
 
+export type ReportFixedTransition = Extract<ReportTransition, { action: "mark_fixed" }>;
+
 export type ReportDuplicateTransition = Extract<
   ReportTransition,
   { action: "merge_duplicate" | "unmerge_duplicate" }

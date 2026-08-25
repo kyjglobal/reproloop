@@ -41,13 +41,16 @@ describe("duplicate transaction service", () => {
     const target = report(targetId, { status: "investigating" });
     const canonical = report(canonicalId);
     const updateReport = vi.fn(async () => undefined);
-    const addStatusEvent = vi.fn(async () => undefined);
+    const addStatusEvent = vi.fn(async () => "55555555-5555-4555-8555-555555555555");
     const transaction = {
       findById: vi.fn(async (id: string) => (id === targetId ? target : canonical)),
+      findBuildProjectId: vi.fn(),
       listCanonicalAncestorIds: vi.fn(async () => []),
+      listRelatedReporterDiscordUserIds: vi.fn(),
       findLatestDuplicateHistoryEvent: vi.fn(),
       updateReport,
       addStatusEvent,
+      addNotifications: vi.fn(),
     } as ReportTransaction;
 
     await expect(
@@ -86,16 +89,19 @@ describe("duplicate transaction service", () => {
       canonicalReportId: canonicalId,
     });
     const updateReport = vi.fn(async () => undefined);
-    const addStatusEvent = vi.fn(async () => undefined);
+    const addStatusEvent = vi.fn(async () => "55555555-5555-4555-8555-555555555555");
     const transaction = {
       findById: vi.fn(async () => target),
+      findBuildProjectId: vi.fn(),
       listCanonicalAncestorIds: vi.fn(),
+      listRelatedReporterDiscordUserIds: vi.fn(),
       findLatestDuplicateHistoryEvent: vi.fn(async () => ({
         eventType: "duplicate_merged" as const,
         metadata: { previousStatus: "reproduced", canonicalReportId: canonicalId },
       })),
       updateReport,
       addStatusEvent,
+      addNotifications: vi.fn(),
     } as ReportTransaction;
 
     await expect(
@@ -120,13 +126,16 @@ describe("duplicate transaction service", () => {
       findById: vi.fn(async () =>
         report(targetId, { status: "duplicate", canonicalReportId: canonicalId }),
       ),
+      findBuildProjectId: vi.fn(),
       listCanonicalAncestorIds: vi.fn(),
+      listRelatedReporterDiscordUserIds: vi.fn(),
       findLatestDuplicateHistoryEvent: vi.fn(async () => ({
         eventType: "duplicate_unmerged" as const,
         metadata: { restoredStatus: "new" },
       })),
       updateReport: vi.fn(),
       addStatusEvent: vi.fn(),
+      addNotifications: vi.fn(),
     } as ReportTransaction;
 
     await expect(

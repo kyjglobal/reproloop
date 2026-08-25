@@ -1,7 +1,11 @@
 import type { ReportTransition } from "@reproloop/shared";
 
 import { ApiRequestError } from "../api/errors";
-import { transitionDuplicateReport, transitionReportStatus } from "./service";
+import {
+  transitionDuplicateReport,
+  transitionReportFixed,
+  transitionReportStatus,
+} from "./service";
 import type {
   ReportDuplicateTransition,
   ReportStatusTransition,
@@ -69,9 +73,6 @@ export async function dispatchReportTransition(
     case "unmerge_duplicate":
       return handleDuplicateTransition(dependencies, reportId, transition);
     case "mark_fixed":
-      throw new ApiRequestError(
-        "INVALID_STATUS_TRANSITION",
-        "수정 완료와 알림 기능은 Day 8 구현 후 사용할 수 있습니다.",
-      );
+      return transitionReportFixed(dependencies, reportId, transition);
   }
 }

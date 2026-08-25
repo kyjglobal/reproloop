@@ -16,6 +16,8 @@ const organizationId = "22222222-2222-4222-8222-222222222222";
 const projectId = "33333333-3333-4333-8333-333333333333";
 const reportId = "44444444-4444-4444-8444-444444444444";
 const canonicalReportId = "55555555-5555-4555-8555-555555555555";
+const buildId = "66666666-6666-4666-8666-666666666666";
+const statusEventId = "77777777-7777-4777-8777-777777777777";
 
 const report: ReportSnapshot = {
   id: reportId,
@@ -38,13 +40,16 @@ function createDependencies(reportOverride: Partial<ReportSnapshot> = {}) {
     findById: vi.fn(async (id) =>
       id === reportId ? targetReport : id === canonicalReportId ? canonicalReport : null,
     ),
+    findBuildProjectId: vi.fn(async () => projectId),
     listCanonicalAncestorIds: vi.fn(async () => []),
+    listRelatedReporterDiscordUserIds: vi.fn(async () => ["reporter-1", "reporter-1", "reporter-2"]),
     findLatestDuplicateHistoryEvent: vi.fn(async () => ({
       eventType: "duplicate_merged" as const,
       metadata: { previousStatus: "new" },
     })),
     updateReport: vi.fn(async () => undefined),
-    addStatusEvent: vi.fn(async () => undefined),
+    addStatusEvent: vi.fn(async () => statusEventId),
+    addNotifications: vi.fn(async () => []),
   };
   const reportRepository: ReportRepository = {
     findById: vi.fn(async () => targetReport),
@@ -219,6 +224,83 @@ describe("report transition dispatcher", () => {
       status: "new",
       canonicalReportId: null,
     });
+  });
+
+  it("marks a reproduced report fixed and queues one notification per reporter", async () => {
+    const { dependencies, transaction } = createDependencies({ status: "reproduced" });
+
+    await expect(
+      dispatchReportTransition(dependencies, reportId, {
+        action: "mark_fixed",
+        fixedBuildId: buildId,
+        note: "1.2.0에서 수정",
+        expectedVersion: 2,
+      }),
+    ).resolves.toEqual({
+      reportId,
+      action: "mark_fixed",
+      previousStatus: "reproduced",
+      status: "fixed",
+      version: 3,
+    });
+
+    expect(transaction.updateReport).toHaveBeenCalledWith({
+      reportId,
+      expectedVersion: 2,
+      status: "fixed",
+      fixedBuildId: buildId,
+      resolvedAt: expect.any(Date),
+    });
+    expect(transaction.addStatusEvent).toHaveBeenCalledWith({
+      reportId,
+      eventType: "report_fixed",
+      fromStatus: "reproduced",
+      toStatus: "fixed",
+      actorId: userId,
+      note: "1.2.0에서 수정",
+      metadata: { fixedBuildId: buildId },
+    });
+    expect(transaction.addNotifications).toHaveBeenCalledWith({
+      reportId,
+      statusEventId,
+      type: "report_fixed",
+      recipientDiscordUserIds: ["reporter-1", "reporter-2"],
+    });
+  });
+
+  it("rejects mark_fixed when the selected build belongs to another project", async () => {
+    const { dependencies, transaction } = createDependencies({ status: "reproduced" });
+    vi.mocked(transaction.findBuildProjectId).mockResolvedValue(canonicalReportId);
+
+    await expect(
+      dispatchReportTransition(dependencies, reportId, {
+        action: "mark_fixed",
+        fixedBuildId: buildId,
+        expectedVersion: 2,
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(transaction.updateReport).not.toHaveBeenCalled();
+  });
+
+  it("keeps mark_fixed forbidden for a member", async () => {
+    const { dependencies, guards, transaction } = createDependencies({
+      status: "reproduced",
+    });
+    vi.mocked(guards.requireProjectMember).mockResolvedValue({
+      projectId,
+      organizationId,
+      userId,
+      role: "member",
+    });
+
+    await expect(
+      dispatchReportTransition(dependencies, reportId, {
+        action: "mark_fixed",
+        fixedBuildId: buildId,
+        expectedVersion: 2,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(transaction.updateReport).not.toHaveBeenCalled();
   });
 
   it("keeps duplicate mutations forbidden for a member", async () => {

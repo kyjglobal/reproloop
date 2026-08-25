@@ -3,6 +3,7 @@ import type { ReportRepository } from "@reproloop/domain";
 
 import { getAuthGuards } from "../auth/runtime";
 import { getDatabase } from "../db/connection";
+import { enqueueNotificationJob } from "../jobs/notification-queue";
 import { DrizzleReportDetailQueryRepository } from "./drizzle-report-detail-query-repository";
 import { DrizzleDuplicateCandidateQueryRepository } from "./drizzle-duplicate-candidate-query-repository";
 import { DrizzleReportListQueryRepository } from "./drizzle-report-list-query-repository";
@@ -13,7 +14,10 @@ let transitionRepository: DrizzleReportRepository | undefined;
 let duplicateCandidateRepository: DrizzleDuplicateCandidateQueryRepository | undefined;
 
 function getTransitionRepository(): DrizzleReportRepository {
-  transitionRepository ??= new DrizzleReportRepository(getDatabase());
+  transitionRepository ??= new DrizzleReportRepository(
+    getDatabase(),
+    enqueueNotificationJob,
+  );
   return transitionRepository;
 }
 

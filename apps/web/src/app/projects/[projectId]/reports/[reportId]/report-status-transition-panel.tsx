@@ -3,6 +3,7 @@
 import type {
   ApiDataResponse,
   ApiErrorResponse,
+  BuildSummary,
   ReportStatus,
   ReportTransitionResult,
 } from "@reproloop/shared";
@@ -10,13 +11,17 @@ import { LoaderCircle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
-type StatusAction = "request_information" | "start_investigation" | "mark_reproduced";
+type StatusAction =
+  | "request_information"
+  | "start_investigation"
+  | "mark_reproduced"
+  | "mark_fixed";
 
 const actionsByStatus: Record<ReportStatus, readonly StatusAction[]> = {
   new: ["request_information", "start_investigation", "mark_reproduced"],
   needs_info: ["start_investigation"],
   investigating: ["request_information", "mark_reproduced"],
-  reproduced: [],
+  reproduced: ["mark_fixed"],
   fixed: [],
   duplicate: [],
 };
@@ -25,22 +30,32 @@ const actionLabels: Record<StatusAction, string> = {
   request_information: "추가 정보 요청",
   start_investigation: "조사 시작",
   mark_reproduced: "재현 완료",
+  mark_fixed: "수정 완료",
 };
 
 interface ReportStatusTransitionPanelProps {
   reportId: string;
   status: ReportStatus;
   version: number;
+  builds: BuildSummary[];
+  canMarkFixed: boolean;
 }
 
 export function ReportStatusTransitionPanel({
   reportId,
   status,
   version,
+  builds,
+  canMarkFixed,
 }: ReportStatusTransitionPanelProps) {
   const router = useRouter();
-  const availableActions = actionsByStatus[status];
+  const availableActions = actionsByStatus[status].filter(
+    (availableAction) => availableAction !== "mark_fixed" || canMarkFixed,
+  );
   const [action, setAction] = useState<StatusAction | "">(availableActions[0] ?? "");
+  const [fixedBuildId, setFixedBuildId] = useState(
+    builds.find((build) => build.isActive)?.id ?? builds[0]?.id ?? "",
+  );
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<
@@ -60,10 +75,21 @@ export function ReportStatusTransitionPanel({
       setFeedback({ kind: "error", message: "요청할 내용을 입력해 주세요." });
       return;
     }
+    if (action === "mark_fixed" && !fixedBuildId) {
+      setFeedback({ kind: "error", message: "수정된 빌드를 선택해 주세요." });
+      return;
+    }
 
     const payload =
       action === "request_information"
         ? { action, message: trimmedNote, expectedVersion: version }
+        : action === "mark_fixed"
+          ? {
+              action,
+              fixedBuildId,
+              ...(trimmedNote ? { note: trimmedNote } : {}),
+              expectedVersion: version,
+            }
         : {
             action,
             ...(trimmedNote ? { note: trimmedNote } : {}),
@@ -135,7 +161,7 @@ export function ReportStatusTransitionPanel({
 
           <button
             type="submit"
-            disabled={pending || !action}
+            disabled={pending || !action || (action === "mark_fixed" && !fixedBuildId)}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? (
@@ -146,6 +172,32 @@ export function ReportStatusTransitionPanel({
             {pending ? "처리 중" : "적용"}
           </button>
         </div>
+
+        {action === "mark_fixed" ? (
+          <label className="grid gap-2 text-sm font-medium text-zinc-700">
+            수정 빌드
+            <select
+              value={fixedBuildId}
+              onChange={(event) => {
+                setFixedBuildId(event.target.value);
+                setFeedback(undefined);
+              }}
+              required
+              disabled={pending || builds.length === 0}
+              className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-600 focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-100"
+            >
+              {builds.length === 0 ? (
+                <option value="">등록된 빌드가 없습니다</option>
+              ) : (
+                builds.map((build) => (
+                  <option key={build.id} value={build.id}>
+                    {build.version}{build.isActive ? " (활성)" : ""}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        ) : null}
 
         <label className="grid gap-2 text-sm font-medium text-zinc-700">
           {noteRequired ? "요청 내용" : "처리 메모 (선택)"}

@@ -1,4 +1,5 @@
 import {
+  collectNotificationRecipientIds,
   mergeDuplicateReport,
   unmergeDuplicateReport,
   validateReportTransition,
@@ -19,6 +20,7 @@ import type {
   ReportListPage,
   ReportListQueryRepository,
   ReportDuplicateTransition,
+  ReportFixedTransition,
   ReportStatusTransition,
   ReportTransitionDependencies,
 } from "./types";
@@ -37,6 +39,65 @@ export async function listAccessibleDuplicateCandidates(
 
   await guards.requireProjectMember(projectId);
   return repository.listDuplicateCandidates({ projectId, targetReportId, query });
+}
+
+export async function transitionReportFixed(
+  dependencies: ReportTransitionDependencies,
+  reportId: string,
+  transition: ReportFixedTransition,
+): Promise<ReportTransitionResult> {
+  const report = await dependencies.reportRepository.findById(reportId);
+  if (!report) {
+    throw new ApiRequestError("NOT_FOUND", "제보를 찾을 수 없습니다.");
+  }
+
+  const membership = await dependencies.guards.requireProjectMember(report.projectId);
+
+  const decision = await dependencies.reportRepository.transaction(async (transaction) => {
+    const fixedBuildProjectId = await transaction.findBuildProjectId(transition.fixedBuildId);
+    const transitionDecision = validateReportTransition({
+      report,
+      actorRole: membership.role,
+      transition,
+      fixedBuildProjectId,
+    });
+
+    await transaction.updateReport({
+      reportId,
+      expectedVersion: transition.expectedVersion,
+      status: transitionDecision.nextStatus,
+      fixedBuildId: transition.fixedBuildId,
+      resolvedAt: new Date(),
+    });
+    const statusEventId = await transaction.addStatusEvent({
+      reportId,
+      eventType: transitionDecision.eventType,
+      fromStatus: transitionDecision.previousStatus,
+      toStatus: transitionDecision.nextStatus,
+      actorId: membership.userId,
+      note: transition.note,
+      metadata: { fixedBuildId: transition.fixedBuildId },
+    });
+    const recipientDiscordUserIds = collectNotificationRecipientIds(
+      await transaction.listRelatedReporterDiscordUserIds(reportId),
+    );
+    await transaction.addNotifications({
+      reportId,
+      statusEventId,
+      type: "report_fixed",
+      recipientDiscordUserIds,
+    });
+
+    return transitionDecision;
+  });
+
+  return {
+    reportId,
+    action: decision.action,
+    previousStatus: decision.previousStatus,
+    status: decision.nextStatus,
+    version: decision.nextVersion,
+  };
 }
 
 export async function listAccessibleProjectReports(
