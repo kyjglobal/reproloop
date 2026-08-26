@@ -25,8 +25,8 @@ const lazyTransitionRepository: ReportRepository = {
   findById: (reportId) => getTransitionRepository().findById(reportId),
   listCanonicalAncestorIds: (reportId) =>
     getTransitionRepository().listCanonicalAncestorIds(reportId),
-  listRelatedReporterDiscordUserIds: (reportId) =>
-    getTransitionRepository().listRelatedReporterDiscordUserIds(reportId),
+  listRelatedReportReporters: (reportId) =>
+    getTransitionRepository().listRelatedReportReporters(reportId),
   transaction: (work) => getTransitionRepository().transaction(work),
 };
 

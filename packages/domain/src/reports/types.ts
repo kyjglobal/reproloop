@@ -31,6 +31,17 @@ export interface DuplicateMutationResult {
   version: number;
 }
 
+export interface RelatedReportReporter {
+  reportId: string;
+  reporterDiscordUserId: string;
+}
+
+export interface ReportFixNotificationAudience {
+  canonicalReportId: string;
+  relatedReportIds: readonly string[];
+  recipientDiscordUserIds: readonly string[];
+}
+
 export interface ReportTransitionInput {
   report: ReportSnapshot;
   actorRole: OrganizationRole;

@@ -144,7 +144,7 @@ pnpm --filter @reproloop/web test
 
 ## 11. B 작업과 만나는 지점
 
-B가 구현한 `listRelatedReporterDiscordUserIds`는 대표 제보와 그 대표를 가리키는 중복 제보의 Discord 사용자 ID를 조회한다. A의 수정 완료 서비스는 이 값을 `collectNotificationRecipientIds`로 중복 제거한 뒤 알림과 Worker job을 만든다.
+B가 구현한 `resolveReportFixNotificationAudience`는 대표 제보와 그 대표를 가리키는 중복 제보를 조회해 canonical report ID, 관련 report ID, 중복 제거된 Discord 수신자 ID를 반환한다. A의 수정 완료 서비스는 이 결과를 같은 transaction 안에서 알림과 Worker job으로 저장한다.
 
 교차 검증에서는 대표 제보 1건에 중복 제보 1건 이상을 연결하고, 같은 사람이 여러 제보를 작성해도 DM이 한 번만 가는지 확인한다.
 

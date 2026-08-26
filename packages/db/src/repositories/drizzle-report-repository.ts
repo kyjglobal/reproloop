@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
 
 import {
   ReportDomainError,
   type ReportRepository,
+  type RelatedReportReporter,
   type ReportSnapshot,
   type ReportTransaction,
 } from "@reproloop/domain";
@@ -67,12 +68,15 @@ async function listCanonicalAncestors(
   return ancestorIds;
 }
 
-async function listRelatedReporterDiscordUserIds(
+async function listRelatedReporters(
   database: ReportDatabase,
   canonicalReportId: string,
-): Promise<readonly string[]> {
-  const rows = await database
-    .select({ reporterDiscordUserId: bugReports.reporterDiscordUserId })
+): Promise<readonly RelatedReportReporter[]> {
+  return database
+    .select({
+      reportId: bugReports.id,
+      reporterDiscordUserId: bugReports.reporterDiscordUserId,
+    })
     .from(bugReports)
     .where(
       and(
@@ -82,9 +86,8 @@ async function listRelatedReporterDiscordUserIds(
         ),
         isNull(bugReports.deletedAt),
       ),
-    );
-
-  return rows.map((row) => row.reporterDiscordUserId);
+    )
+    .orderBy(asc(bugReports.createdAt), asc(bugReports.id));
 }
 
 class DrizzleReportTransaction implements ReportTransaction {
@@ -111,10 +114,10 @@ class DrizzleReportTransaction implements ReportTransaction {
     return listCanonicalAncestors(this.transactionDatabase, reportId);
   }
 
-  listRelatedReporterDiscordUserIds(
+  listRelatedReportReporters(
     canonicalReportId: string,
-  ): Promise<readonly string[]> {
-    return listRelatedReporterDiscordUserIds(this.transactionDatabase, canonicalReportId);
+  ): Promise<readonly RelatedReportReporter[]> {
+    return listRelatedReporters(this.transactionDatabase, canonicalReportId);
   }
 
   async findLatestDuplicateHistoryEvent(
@@ -243,10 +246,10 @@ export class DrizzleReportRepository implements ReportRepository {
     return listCanonicalAncestors(this.database, reportId);
   }
 
-  async listRelatedReporterDiscordUserIds(
+  listRelatedReportReporters(
     canonicalReportId: string,
-  ): Promise<readonly string[]> {
-    return listRelatedReporterDiscordUserIds(this.database, canonicalReportId);
+  ): Promise<readonly RelatedReportReporter[]> {
+    return listRelatedReporters(this.database, canonicalReportId);
   }
 
   transaction<TResult>(
