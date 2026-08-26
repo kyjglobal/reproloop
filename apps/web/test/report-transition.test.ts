@@ -42,7 +42,11 @@ function createDependencies(reportOverride: Partial<ReportSnapshot> = {}) {
     ),
     findBuildProjectId: vi.fn(async () => projectId),
     listCanonicalAncestorIds: vi.fn(async () => []),
-    listRelatedReporterDiscordUserIds: vi.fn(async () => ["reporter-1", "reporter-1", "reporter-2"]),
+    listRelatedReportReporters: vi.fn(async () => [
+      { reportId, reporterDiscordUserId: "reporter-1" },
+      { reportId: "88888888-8888-4888-8888-888888888888", reporterDiscordUserId: "reporter-1" },
+      { reportId: "99999999-9999-4999-8999-999999999999", reporterDiscordUserId: "reporter-2" },
+    ]),
     findLatestDuplicateHistoryEvent: vi.fn(async () => ({
       eventType: "duplicate_merged" as const,
       metadata: { previousStatus: "new" },
@@ -54,7 +58,7 @@ function createDependencies(reportOverride: Partial<ReportSnapshot> = {}) {
   const reportRepository: ReportRepository = {
     findById: vi.fn(async () => targetReport),
     listCanonicalAncestorIds: vi.fn(async () => []),
-    listRelatedReporterDiscordUserIds: vi.fn(async () => []),
+    listRelatedReportReporters: vi.fn(async () => []),
     transaction: vi.fn(async (work) => work(transaction)),
   };
   const guards = {
@@ -260,6 +264,7 @@ describe("report transition dispatcher", () => {
       note: "1.2.0에서 수정",
       metadata: { fixedBuildId: buildId },
     });
+    expect(transaction.listRelatedReportReporters).toHaveBeenCalledWith(reportId);
     expect(transaction.addNotifications).toHaveBeenCalledWith({
       reportId,
       statusEventId,

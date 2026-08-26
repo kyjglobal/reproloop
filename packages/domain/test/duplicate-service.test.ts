@@ -31,7 +31,7 @@ function createRepository(transaction: ReportTransaction): ReportRepository {
   return {
     findById: vi.fn(),
     listCanonicalAncestorIds: vi.fn(),
-    listRelatedReporterDiscordUserIds: vi.fn(),
+    listRelatedReportReporters: vi.fn(),
     transaction: vi.fn((work) => work(transaction)),
   };
 }
@@ -46,7 +46,7 @@ describe("duplicate transaction service", () => {
       findById: vi.fn(async (id: string) => (id === targetId ? target : canonical)),
       findBuildProjectId: vi.fn(),
       listCanonicalAncestorIds: vi.fn(async () => []),
-      listRelatedReporterDiscordUserIds: vi.fn(),
+      listRelatedReportReporters: vi.fn(async () => []),
       findLatestDuplicateHistoryEvent: vi.fn(),
       updateReport,
       addStatusEvent,
@@ -94,7 +94,7 @@ describe("duplicate transaction service", () => {
       findById: vi.fn(async () => target),
       findBuildProjectId: vi.fn(),
       listCanonicalAncestorIds: vi.fn(),
-      listRelatedReporterDiscordUserIds: vi.fn(),
+      listRelatedReportReporters: vi.fn(async () => []),
       findLatestDuplicateHistoryEvent: vi.fn(async () => ({
         eventType: "duplicate_merged" as const,
         metadata: { previousStatus: "reproduced", canonicalReportId: canonicalId },
@@ -128,7 +128,7 @@ describe("duplicate transaction service", () => {
       ),
       findBuildProjectId: vi.fn(),
       listCanonicalAncestorIds: vi.fn(),
-      listRelatedReporterDiscordUserIds: vi.fn(),
+      listRelatedReportReporters: vi.fn(async () => []),
       findLatestDuplicateHistoryEvent: vi.fn(async () => ({
         eventType: "duplicate_unmerged" as const,
         metadata: { restoredStatus: "new" },

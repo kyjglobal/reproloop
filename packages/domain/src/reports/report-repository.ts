@@ -1,12 +1,21 @@
 import type { NotificationType, ReportStatus, StatusEventType } from "@reproloop/shared";
 
-import type { DuplicateHistoryEvent, ReportSnapshot } from "./types.js";
+import type {
+  DuplicateHistoryEvent,
+  RelatedReportReporter,
+  ReportSnapshot,
+} from "./types.js";
 
-export interface ReportTransaction {
+export interface ReportNotificationRecipientReader {
   findById(reportId: string): Promise<ReportSnapshot | null>;
+  listRelatedReportReporters(
+    canonicalReportId: string,
+  ): Promise<readonly RelatedReportReporter[]>;
+}
+
+export interface ReportTransaction extends ReportNotificationRecipientReader {
   findBuildProjectId(buildId: string): Promise<string | null>;
   listCanonicalAncestorIds(reportId: string): Promise<readonly string[]>;
-  listRelatedReporterDiscordUserIds(canonicalReportId: string): Promise<readonly string[]>;
   findLatestDuplicateHistoryEvent(reportId: string): Promise<DuplicateHistoryEvent | null>;
 
   updateReport(input: {
@@ -36,9 +45,7 @@ export interface ReportTransaction {
   }): Promise<readonly string[]>;
 }
 
-export interface ReportRepository {
-  findById(reportId: string): Promise<ReportSnapshot | null>;
+export interface ReportRepository extends ReportNotificationRecipientReader {
   listCanonicalAncestorIds(reportId: string): Promise<readonly string[]>;
-  listRelatedReporterDiscordUserIds(canonicalReportId: string): Promise<readonly string[]>;
   transaction<TResult>(work: (transaction: ReportTransaction) => Promise<TResult>): Promise<TResult>;
 }

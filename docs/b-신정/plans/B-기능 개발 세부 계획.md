@@ -53,7 +53,7 @@
 | Discord `/bug` | 미구현 | 서명 검증, PING, modal, 멱등 저장을 구현한다. |
 | 제보 상세·상태 이력 화면 | 미구현 | A의 인증 helper와 프로젝트 접근 검사를 사용한다. |
 | 중복 병합·취소 API/UI | 구현 완료·smoke 대기 | 기존 Domain 판단 함수와 낙관적 잠금을 재사용했으며, 배포 후 owner/admin 실제 계정 smoke를 남겨 둔다. |
-| 대표·중복 제보자 알림 대상 DB 조회 | 미구현 | B가 조회·중복 제거까지 제공하고 A의 알림 생성·Worker에 인계한다. |
+| 대표·중복 제보자 알림 대상 DB 조회 | 완료 | A의 Day 8 `mark_fixed`·queue·Worker와 수신자 조회를 연결했고, 2026-08-26 로컬 테스트 Discord에서 고유 수신자별 DM 1회 전송을 확인했다. |
 | 핵심 E2E·운영 Discord 검증 | 미구현 | 로컬 자동화 후 실제 Discord·Railway smoke test를 수행한다. |
 
 현재 가장 먼저 해결할 불일치는 다음과 같다.
@@ -99,10 +99,10 @@ B-00 착수 점검·결정 잠금
 | **구현 완료·smoke 대기 (5/5)** | 3단계 | PR 3 — `feat/discord-bug-submit` | 서명 검증, `/bug` modal, 멱등 제보 저장 | 2단계 완료, Discord 접근 |
 | **구현 완료·smoke 대기 (5/5)** | 4단계 | PR 4 — `feat/report-detail` | 상세 API, 이력 조회, 상세 화면 | 2단계 완료, A의 인증 helper |
 | **구현 완료·smoke 대기 (6/6)** | 5단계 | PR 5 — `feat/duplicate-merge` | 대표 검색, 병합·취소 서비스/API/UI | 4단계 완료, transition route 합의 |
-| 대기 | 6단계 | PR 6 — `feat/duplicate-recipients` | 대표·중복 제보자 조회와 알림 payload 연동 | 5단계 완료, A의 Worker job 계약 |
+| **완료 (4/4)** | 6단계 | PR 6 — `feat/duplicate-recipients` | 대표·중복 제보자 조회와 알림 payload 연동 | 5단계 완료, A의 Worker job 계약 |
 | 대기 | 7단계 | PR 7 — `test/core-e2e` | 자동 통합 테스트, 운영 smoke 기록 | 3~6단계와 A의 P0 기능 완료 |
 
-1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 4단계 코드와 자동 검증은 2026-08-20에 완료했으며, 테스트 DB 통합 검사와 실제 계정 수동 smoke만 남아 있다. 5단계 B-DUP-01~06 코드는 2026-08-24에 완료했고 타입 검사, 단위·회귀 테스트, lint와 production build를 통과했으며, PR 병합·Railway 재배포 후 owner/admin 실제 계정 smoke가 남아 있다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md), [B 4단계 제보 상세 구현 보고서](../reports/B-4단계_제보_상세_구현_보고서.md)에 기록한다.
+1단계는 2026-08-14, 2단계는 2026-08-16에 완료했다. 3단계 코드는 2026-08-17에 완료했고, 공개 HTTPS 배포 URL과 테스트 guild ID를 설정한 실제 Discord smoke test만 남아 있다. 4단계 코드와 자동 검증은 2026-08-20에 완료했으며, 테스트 DB 통합 검사와 실제 계정 수동 smoke만 남아 있다. 5단계 B-DUP-01~06 코드는 2026-08-24에 완료했고 타입 검사, 단위·회귀 테스트, lint와 production build를 통과했으며, PR 병합·Railway 재배포 후 owner/admin 실제 계정 smoke가 남아 있다. 6단계는 A의 Day 8 Worker와 통합한 뒤 2026-08-26 로컬 Discord DM smoke까지 완료했다. 세부 결과는 [B 1단계 착수 점검 보고서](../archive/B-1단계_착수_점검_보고서.md), [B 2단계 DB·도메인 기반 완료 보고서](../archive/B-2단계_DB_도메인_기반_완료_보고서.md), [B 3단계 Discord `/bug` 구현 보고서](../reports/B-3단계_Discord_bug_구현_보고서.md), [B 4단계 제보 상세 구현 보고서](../reports/B-4단계_제보_상세_구현_보고서.md)에 기록한다.
 
 <a id="phase-1"></a>
 
@@ -466,7 +466,9 @@ B-00 착수 점검·결정 잠금
 | 주요 산출물 | recipient query, idempotency 입력, 연동 테스트 |
 | 종료 조건 | 대표·중복 제보자가 실제 Discord 알림을 각각 한 번만 받는다. |
 
-### B-NOT-01. 관련 제보자 DB 조회 구현
+> 2026-08-25 최종 연동 기준: A의 Day 8 구현과 통합해 `NotificationSendJobV1` (`notificationId` payload)과 `eventId + notificationType + recipientId` idempotency key를 그대로 사용한다.
+
+### B-NOT-01. 관련 제보자 DB 조회 구현 — ✅ 완료
 
 - 입력이 canonical report면 자기 자신과 직접 연결된 duplicate report의 reporter ID 조회
 - 입력이 duplicate report면 canonical ID를 먼저 확인한 뒤 같은 집합 조회
@@ -474,7 +476,7 @@ B-00 착수 점검·결정 잠금
 - 반환 전 `collectNotificationRecipientIds`로 중복 제거
 - 완료 기준: 대표·중복에 같은 사용자가 반복되어도 Discord ID가 한 번만 반환됨
 
-### B-NOT-02. 알림 생성 입력 계약 인계
+### B-NOT-02. 알림 생성 입력 계약 인계 — ✅ A Day 8 연동 완료
 
 - A에게 제공: canonical report ID, 관련 report ID, recipient Discord user ID의 중복 제거된 목록
 - A의 `mark_fixed` transaction 안에서 recipient별 notification과 job/outbox를 생성하도록 연결
@@ -482,7 +484,7 @@ B-00 착수 점검·결정 잠금
 - B는 Discord 전송 로직을 구현하지 않고 A의 Worker job payload 계약을 사용
 - 완료 기준: 대표 제보 수정 시 대표·중복 제보자 수만큼 notification이 생성되고 동일 recipient 중복은 없음
 
-### B-NOT-03. 알림 대상 통합 테스트
+### B-NOT-03. 알림 대상 통합 테스트 — ✅ 자동 검증 완료
 
 - 대표만 있는 경우
 - 중복 제보 여러 건
@@ -492,12 +494,14 @@ B-00 착수 점검·결정 잠금
 - 동일 event 재시도 시 unique key 충돌로 추가 생성 방지
 - 완료 기준: A의 Worker를 mock한 상태에서 정확한 payload 목록이 만들어짐
 
-### B-NOT-04. A와 실제 Worker 연동 확인
+### B-NOT-04. A와 실제 Worker 연동 확인 — ✅ 완료 (2026-08-26)
 
 - A의 `NotificationSendJobV1Schema` 사용 여부 확인
 - sent notification 재처리 방지와 실패 attempt 증가 확인
 - 실제 테스트 Discord 계정에 한 번만 도착하는지 확인
 - 완료 기준: 대표·중복 제보자가 각각 정확히 한 번 알림을 받고 DB 상태가 `sent`로 바뀜
+
+> 자동 검증으로 Shared schema parsing, `sent` 재전송 방지, 실패 상태 기록과 pg-boss 재시도 흐름을 확인했다. 2026-08-26 로컬 Web·Worker와 테스트 Discord bot을 연결해 대표·중복 제보자의 DM 도착을 확인했다.
 
 <a id="phase-7"></a>
 

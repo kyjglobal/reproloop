@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   mergeDuplicateReport,
   ReportDomainError,
+  resolveReportFixNotificationAudience,
   unmergeDuplicateReport,
 } from "@reproloop/domain";
 import type { CreateBugReportCommand } from "@reproloop/shared";
@@ -17,6 +18,7 @@ import {
   DrizzleReportRepository,
   gameProjects,
   organizations,
+  notifications,
   statusEvents,
   users,
   type Database,
@@ -113,7 +115,10 @@ describeWithDatabase("report persistence integration", () => {
     await connection.close();
   });
 
-  function createCommand(discordInteractionId: string): CreateBugReportCommand {
+  function createCommand(
+    discordInteractionId: string,
+    reporterDiscordUserId = `reporter-${suffix}`,
+  ): CreateBugReportCommand {
     return {
       projectId,
       buildId,
@@ -124,7 +129,7 @@ describeWithDatabase("report persistence integration", () => {
       reproductionSteps: "Press the inventory key during the cutscene.",
       platform: "Windows 11",
       frequency: "3/5",
-      reporterDiscordUserId: `reporter-${suffix}`,
+      reporterDiscordUserId,
       reporterDisplayName: "Player One",
       discordGuildId,
       sourceChannelId: `channel-${suffix}`,
@@ -262,5 +267,107 @@ describeWithDatabase("report persistence integration", () => {
       canonicalReportId: null,
       version: 2,
     });
+  });
+
+  it("resolves unique canonical and duplicate recipients and rejects a retried notification", async () => {
+    const canonical = await createBugReport(
+      database,
+      createCommand(`interaction-${crypto.randomUUID()}`, "recipient-a"),
+    );
+    const sameReporterDuplicate = await createBugReport(
+      database,
+      createCommand(`interaction-${crypto.randomUUID()}`, "recipient-a"),
+    );
+    const otherReporterDuplicate = await createBugReport(
+      database,
+      createCommand(`interaction-${crypto.randomUUID()}`, "recipient-b"),
+    );
+    const deletedDuplicate = await createBugReport(
+      database,
+      createCommand(`interaction-${crypto.randomUUID()}`, "recipient-deleted"),
+    );
+
+    for (const reportId of [
+      sameReporterDuplicate.id,
+      otherReporterDuplicate.id,
+      deletedDuplicate.id,
+    ]) {
+      await database
+        .update(bugReports)
+        .set({ status: "duplicate", canonicalReportId: canonical.id })
+        .where(eq(bugReports.id, reportId));
+    }
+    await database
+      .update(bugReports)
+      .set({ deletedAt: new Date() })
+      .where(eq(bugReports.id, deletedDuplicate.id));
+
+    const enqueueNotificationJob = vi.fn(async () => undefined);
+    const repository = new DrizzleReportRepository(database, enqueueNotificationJob);
+    const fromCanonical = await repository.transaction((transaction) =>
+      resolveReportFixNotificationAudience(transaction, canonical.id),
+    );
+    const fromDuplicate = await resolveReportFixNotificationAudience(
+      repository,
+      otherReporterDuplicate.id,
+    );
+
+    const expectedAudience = {
+      canonicalReportId: canonical.id,
+      relatedReportIds: expect.arrayContaining([
+        canonical.id,
+        sameReporterDuplicate.id,
+        otherReporterDuplicate.id,
+      ]),
+      recipientDiscordUserIds: ["recipient-a", "recipient-b"],
+    };
+    expect(fromCanonical).toEqual(expectedAudience);
+    expect(fromCanonical.relatedReportIds).toHaveLength(3);
+    expect(fromDuplicate).toEqual(fromCanonical);
+
+    const [createdEvent] = await database
+      .insert(statusEvents)
+      .values({
+        reportId: canonical.id,
+        eventType: "report_fixed",
+        fromStatus: "reproduced",
+        toStatus: "fixed",
+        actorUserId: userId,
+      })
+      .returning({ id: statusEvents.id });
+    const notificationInput = {
+      reportId: fromCanonical.canonicalReportId,
+      statusEventId: createdEvent!.id,
+      type: "report_fixed" as const,
+      recipientDiscordUserIds: fromCanonical.recipientDiscordUserIds,
+    };
+    const savedIds = await repository.transaction((transaction) =>
+      transaction.addNotifications(notificationInput),
+    );
+    expect(enqueueNotificationJob).toHaveBeenCalledTimes(2);
+    expect(enqueueNotificationJob.mock.calls.map(([, job]) => job)).toEqual(
+      savedIds.map((notificationId) => ({
+        jobName: "notification.send.v1",
+        version: 1,
+        notificationId,
+      })),
+    );
+    await expect(
+      repository.transaction((transaction) =>
+        transaction.addNotifications(notificationInput),
+      ),
+    ).rejects.toBeTruthy();
+
+    const savedNotifications = await database
+      .select({
+        recipientDiscordUserId: notifications.recipientDiscordUserId,
+        idempotencyKey: notifications.idempotencyKey,
+      })
+      .from(notifications)
+      .where(eq(notifications.statusEventId, createdEvent!.id));
+    expect(savedNotifications).toHaveLength(2);
+    expect(savedNotifications.map(({ recipientDiscordUserId }) => recipientDiscordUserId)).toEqual(
+      expect.arrayContaining(["recipient-a", "recipient-b"]),
+    );
   });
 });

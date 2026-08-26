@@ -1,6 +1,6 @@
 import {
-  collectNotificationRecipientIds,
   mergeDuplicateReport,
+  resolveReportFixNotificationAudience,
   unmergeDuplicateReport,
   validateReportTransition,
 } from "@reproloop/domain";
@@ -78,14 +78,12 @@ export async function transitionReportFixed(
       note: transition.note,
       metadata: { fixedBuildId: transition.fixedBuildId },
     });
-    const recipientDiscordUserIds = collectNotificationRecipientIds(
-      await transaction.listRelatedReporterDiscordUserIds(reportId),
-    );
+    const audience = await resolveReportFixNotificationAudience(transaction, reportId);
     await transaction.addNotifications({
-      reportId,
+      reportId: audience.canonicalReportId,
       statusEventId,
       type: "report_fixed",
-      recipientDiscordUserIds,
+      recipientDiscordUserIds: audience.recipientDiscordUserIds,
     });
 
     return transitionDecision;

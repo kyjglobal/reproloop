@@ -79,7 +79,11 @@ describe("notification worker service", () => {
         notificationId,
       }),
     ).rejects.toThrow("Discord unavailable");
+    expect(repository.markProcessing).toHaveBeenCalledWith(notificationId);
     expect(repository.markFailed).toHaveBeenCalledWith(notificationId, error);
+    expect(vi.mocked(repository.markProcessing).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(repository.markFailed).mock.invocationCallOrder[0]!,
+    );
     expect(repository.markSent).not.toHaveBeenCalled();
   });
 });
