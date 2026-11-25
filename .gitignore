@@ -5,6 +5,8 @@ dist/
 .env
 .env.*
 !.env.example
+customer.env
+deploy/broker.env
 playwright-report/
 test-results/
 coverage/

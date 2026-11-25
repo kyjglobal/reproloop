@@ -6,7 +6,7 @@
 
 ReproLoop는 Discord로 테스트를 운영하는 소규모 게임 팀을 위한 도구입니다. 플레이테스터가 문제가 발생한 빌드와 재현 절차를 제출하면, 개발팀은 제보를 한곳에서 모아 조사하고 같은 문제를 묶어 처리할 수 있습니다. 팀이 수정한 빌드를 기록하면 봇이 해당 문제를 제보한 플레이테스터에게 Discord DM을 보냅니다.
 
-배포 목표는 **ReproLoop가 Discord 봇을 운영하고, 고객이 관리자 웹·PostgreSQL·Worker를 자기 PC나 내부 서버에 설치하는 방식**입니다. 제보 본문, 프로젝트, 빌드, 처리 이력은 고객의 PostgreSQL에 저장됩니다. Discord에서 폼을 제출하거나 DM을 보낼 때 필요한 정보는 Discord와 ReproLoop 봇을 거칩니다. 봇은 구축되어 있으며, 제공 봇과 고객 로컬 설치본을 연결하는 기능과 설치 패키지는 출시 준비 항목입니다.
+**ReproLoop가 Discord 봇을 운영하고, 고객은 관리자 웹·PostgreSQL·Worker를 자기 PC나 내부 서버에 설치합니다.** 제보 본문, 프로젝트, 빌드와 처리 이력은 고객 PostgreSQL에 저장됩니다. Discord에서 폼을 제출하거나 DM을 보낼 때 필요한 정보는 Discord와 ReproLoop 봇을 거칩니다. 전체 흐름에는 로컬 연결 기능이 배포된 제공 봇 주소와 공개 애플리케이션 ID가 필요합니다.
 
 ## 활용 상황과 기대효과
 
@@ -46,7 +46,7 @@ ReproLoop는 Discord로 테스트를 운영하는 소규모 게임 팀을 위한
 
 ## System Architecture
 
-출시 목표 구조에서 고객 로컬 설치본이 봇 서비스에 연결합니다. 관리자 화면과 PostgreSQL은 기본 설정에서 설치한 기기 안에서 접근합니다.
+로컬 Worker가 HTTPS로 제공 봇에 요청을 보내고 대기하면서 Discord 제보를 받아옵니다. 관리자 화면은 기본 설정에서 설치한 기기에서 접근하고, PostgreSQL은 Docker 내부 네트워크에 둡니다.
 
 ```mermaid
 flowchart LR
@@ -58,7 +58,7 @@ flowchart LR
         DB --> Worker["알림 Worker"]
         Worker -->|발송 요청| Connector
     end
-    Connector <-->|로컬에서 연 연결| Bot
+    Connector <-->|로컬에서 시작한 HTTPS 폴링| Bot
     Bot -->|접수 확인·수정 완료 DM| Tester
 ```
 
@@ -75,34 +75,38 @@ pnpm install --frozen-lockfile
 pnpm --filter @reproloop/marketing dev --hostname 127.0.0.1 --port 3001
 ```
 
-### 고객 설치 및 첫 제보 · 출시 후 절차
+### 고객 설치 및 첫 제보
 
-> [!IMPORTANT]
-> 아래는 로컬 설치 패키지와 봇 연결 기능을 배포한 후의 절차입니다. 진행 중인 항목은 [최종 구현 계획](./docs/최종%20구현%20계획.md)에서 확인할 수 있습니다.
+**준비물** — Docker와 Docker Compose가 설치된 PC 또는 내부 서버, 인터넷 연결, 제공 봇 설정이 들어 있는 `customer.env`, 플레이테스트용 Discord 서버와 **서버 관리** 권한이 필요합니다. 제공 봇 설정은 배포 운영자로부터 받습니다. 실제 Discord 제보와 DM을 처리하는 동안 로컬 서비스가 실행 중이어야 합니다. [Docker Compose 설치](https://docs.docker.com/compose/install/) · [Discord 서버 설치 권한](https://docs.discord.com/developers/quick-start/getting-started#choosing-installation-contexts)
 
-**준비물** — 플레이테스트용 Discord 서버, 해당 서버의 **서버 관리** 권한, Docker와 Docker Compose가 설치된 PC 또는 내부 서버, 인터넷 연결이 필요합니다. `docker compose version`이 버전을 출력하면 Compose를 사용할 수 있습니다. 실제 Discord 제보와 DM을 처리하는 동안 로컬 서비스가 실행 중이어야 합니다. [Docker Compose 설치](https://docs.docker.com/compose/install/) · [Discord 서버 설치 권한](https://docs.discord.com/developers/quick-start/getting-started#choosing-installation-contexts)
-
-1. **로컬 서비스 실행.** 배포 시 제공되는 버전별 설치 패키지를 내려받아 압축을 풀고, `compose.yml`이 있는 폴더에서 다음 명령을 실행합니다. 웹·DB·Worker의 상태는 `docker compose ps`에서 확인합니다.
+1. **로컬 서비스 실행.** 제공받은 소스 압축을 풀고 `compose.yaml`과 같은 폴더에 `customer.env`를 둡니다. PowerShell이나 터미널에서 다음 명령을 실행합니다. 첫 실행에서는 이미지와 의존성을 내려받으므로 몇 분 걸릴 수 있습니다.
 
    ```bash
-   docker compose up -d
-   docker compose ps
+   docker compose version
+   docker compose --env-file customer.env up --build -d --wait
+   docker compose --env-file customer.env ps
    ```
 
-2. **관리자 계정 만들기.** 설치한 기기에서 [localhost:3000](http://localhost:3000)을 열고 초기 설정에 따라 관리자 계정과 팀을 만듭니다. PostgreSQL 데이터는 설치본의 로컬 볼륨에 보관됩니다.
-3. **Discord 봇 추가 및 연결.** 초기 설정 화면에서 제공하는 봇 초대 링크를 열고 플레이테스트 서버에 추가합니다. 해당 서버에서 `/reproloop connect`를 실행해 본인에게 표시되는 일회용 코드를 복사하고, 관리자 웹의 **Discord 연결**에 입력합니다. 화면에서 Discord 서버 이름과 **연결됨** 상태를 확인합니다.
+2. **관리자 계정 만들기.** 설치한 기기에서 [localhost:3000](http://localhost:3000)을 엽니다. 다음 명령이 출력한 **설정 코드**와 팀 이름, 아이디, 비밀번호를 입력해 첫 관리자 계정을 만들고 로그인합니다. PostgreSQL 데이터는 로컬 볼륨에 보관됩니다.
+
+   ```bash
+   docker compose --env-file customer.env exec web cat /run/reproloop/setup-token
+   ```
+
+3. **Discord 봇 추가 및 연결.** 로그인 후 **설치 설정 → Discord에 봇 추가**를 선택하고 플레이테스트 서버를 지정합니다. 해당 서버에서 `/reproloop connect`를 실행해 본인에게 표시되는 일회용 코드를 복사하고, 5분 안에 관리자 웹의 **Discord 연결**에 입력합니다. **연결 상태 새로고침**을 눌러 서버 이름과 **연결됨** 상태를 확인합니다.
 4. **프로젝트와 빌드 등록.** 관리자 웹에서 첫 프로젝트를 만들고, 제보를 받을 활성 빌드(예: `0.8.14-beta`)를 등록합니다. 이후 테스트 버전이 바뀔 때마다 빌드를 추가합니다.
 5. **첫 제보 확인.** Discord 테스트 채널에서 `/bug`를 실행하고 프로젝트·빌드를 선택해 샘플을 제출합니다. Discord에 나온 `BUG-번호`의 제보가 관리자 웹에도 표시되는지 확인합니다.
-6. **수정 완료 확인.** 수정 빌드(예: `0.8.15-beta`)를 등록합니다. 테스트 제보를 재현 완료로 변경하고 수정 빌드를 선택해 수정 완료 처리한 뒤, 테스터 계정에서 Discord DM을 확인합니다.
+6. **수정 완료 확인.** 수정 빌드(예: `0.8.15-beta`)를 등록합니다. 테스트 제보를 재현 완료로 변경하고 수정 빌드를 선택해 수정 완료 처리합니다. 테스터 계정에서 DM을 확인하고, 제보 상세의 **Discord 수정 알림**에서 발송 결과를 봅니다.
 
-### 설치본 종료와 문제 확인 · 출시 후 절차
+### 설치본 종료와 문제 확인
 
-- 서비스 종료에는 `docker compose down`을, 재시작에는 `docker compose up -d`를 사용합니다. 일반 종료 후에도 PostgreSQL 볼륨은 유지됩니다. [Docker Compose 종료 동작](https://docs.docker.com/reference/cli/docker/compose/down/)
+- 서비스 종료에는 `docker compose --env-file customer.env down`을, 재시작에는 `docker compose --env-file customer.env up -d --wait`를 사용합니다. 일반 종료 후에도 PostgreSQL 볼륨은 유지됩니다. [Docker Compose 종료 동작](https://docs.docker.com/reference/cli/docker/compose/down/)
 - `/bug`가 보이지 않으면 봇을 추가한 서버와 해당 채널의 명령 사용 권한을 확인합니다. 프로젝트나 빌드가 비어 있으면 서버 연결 상태와 활성 빌드를 확인합니다.
 - 로컬 연결이 끊겼다면 `docker compose ps`로 서비스 상태를 확인하고 관리자 웹의 **Discord 연결**을 확인합니다. DM이 도착하지 않으면 수신자의 DM 설정과 관리자 웹의 발송 결과를 확인합니다.
 
 ## 상세 문서 바로가기
 
 - [최종 구현 계획](./docs/최종%20구현%20계획.md)
+- [봇 배포와 로컬 운영](./docs/봇%20배포와%20로컬%20운영.md)
 - [ReproLoop 문서 안내](./docs/ReproLoop%20문서%20안내.md)
 - [현재 개발 환경의 Discord 설정과 검증](./docs/b-신정/guides/B-3단계_Discord_bug_설정과_검증_가이드.md)

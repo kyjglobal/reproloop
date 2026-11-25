@@ -6,6 +6,8 @@ import type {
   ReportStatusEvent,
   StatusEventType,
 } from "@reproloop/shared";
+import { notifications } from "@reproloop/db/schema";
+import { eq } from "drizzle-orm";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -24,6 +26,7 @@ import { AuthAccessError } from "@/server/auth/errors";
 import { getAuthGuards } from "@/server/auth/runtime";
 import { getBuildQueryRepository } from "@/server/builds/runtime";
 import { listAccessibleProjectBuilds } from "@/server/builds/service";
+import { getDatabase } from "@/server/db/connection";
 import { getReportDetailQueryRepository } from "@/server/reports/runtime";
 import {
   buildReportDetailHref,
@@ -40,6 +43,8 @@ interface ReportDetailPageProps {
   params: Promise<{ projectId: string; reportId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
+
+type Delivery = { id: string; status: typeof notifications.$inferSelect.status; explanation: string | null };
 
 const statusLabels: Record<ReportStatus, string> = {
   new: "신규",
@@ -200,11 +205,13 @@ function ReportDetailView({
   reportsHref,
   canManageDuplicates,
   builds,
+  deliveries,
 }: {
   detail: ReportDetail;
   reportsHref: string;
   canManageDuplicates: boolean;
   builds: BuildSummary[];
+  deliveries: Delivery[];
 }) {
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950">
@@ -285,6 +292,19 @@ function ReportDetailView({
           </div>
 
           <aside className="min-w-0 space-y-5">
+            {deliveries.length > 0 && (
+              <section className="rounded-lg border border-zinc-200 bg-white p-5">
+                <h2 className="text-sm font-semibold">Discord 수정 알림</h2>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {deliveries.map((delivery) => (
+                    <li key={delivery.id}>
+                      {{ queued: "대기 중", processing: "발송 중", sent: "발송 완료", failed: "확인 필요" }[delivery.status]}
+                      {delivery.explanation && <p className="text-xs text-zinc-600">{delivery.explanation}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <section className="rounded-lg border border-zinc-200 bg-white p-5">
               <h2 className="text-sm font-semibold">제보 정보</h2>
               <dl className="mt-4 space-y-4 text-sm">
@@ -368,6 +388,7 @@ export default async function ReportDetailPage({
   let detail: ReportDetail | null = null;
   let canManageDuplicates = false;
   let builds: BuildSummary[] = [];
+  let deliveries: Delivery[] = [];
   let loadError: unknown = null;
 
   try {
@@ -390,6 +411,11 @@ export default async function ReportDetailPage({
         parsed.projectId,
       );
     }
+    if (detail.status === "fixed" && canManageDuplicates && process.env.REPROLOOP_MODE === "local") {
+      deliveries = await getDatabase().select({
+        id: notifications.id, status: notifications.status, explanation: notifications.lastErrorMessage,
+      }).from(notifications).where(eq(notifications.reportId, detail.id));
+    }
   } catch (error) {
     loadError = error;
   }
@@ -404,6 +430,7 @@ export default async function ReportDetailPage({
       reportsHref={reportsHref}
       canManageDuplicates={canManageDuplicates}
       builds={builds}
+      deliveries={deliveries}
     />
   ) : (
     <ErrorState

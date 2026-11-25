@@ -24,6 +24,7 @@ async function loadProjects() {
 }
 
 function AuthRequired() {
+  const local = process.env.REPROLOOP_MODE === "local";
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-10 text-zinc-950 sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center text-center">
@@ -32,13 +33,13 @@ function AuthRequired() {
         </div>
         <h1 className="text-2xl font-semibold tracking-normal">로그인이 필요합니다</h1>
         <p className="mt-3 text-sm leading-6 text-zinc-600">
-          프로젝트와 제보 목록은 Discord로 로그인한 개발자만 볼 수 있습니다.
+          프로젝트와 제보 목록을 보려면 로그인하세요.
         </p>
         <Link
-          href="/api/auth/signin?callbackUrl=/projects"
+          href={local ? "/login" : "/api/auth/signin?callbackUrl=/projects"}
           className="mt-6 inline-flex h-10 items-center rounded-md bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800"
         >
-          Discord 로그인
+          {local ? "로그인" : "Discord 로그인"}
         </Link>
       </section>
     </main>
@@ -106,6 +107,7 @@ export default async function ProjectsPage() {
         <header className="mb-6 flex flex-col gap-2 border-b border-zinc-200 pb-5">
           <p className="text-sm font-medium text-zinc-500">ReproLoop</p>
           <h1 className="text-2xl font-semibold tracking-normal">프로젝트</h1>
+          {process.env.REPROLOOP_MODE === "local" && <Link className="w-fit text-sm underline" href="/settings">설치 설정</Link>}
         </header>
 
         {projects.length === 0 ? (

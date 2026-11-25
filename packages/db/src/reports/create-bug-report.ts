@@ -43,6 +43,7 @@ async function findByInteractionId(
 export async function createBugReport(
   database: Database,
   command: CreateBugReportCommand,
+  bridgeReceipt?: string,
 ): Promise<CreateBugReportResult> {
   const existing = await findByInteractionId(database, command.discordInteractionId);
   if (existing) {
@@ -119,6 +120,7 @@ export async function createBugReport(
           discordGuildId: command.discordGuildId,
           sourceChannelId: command.sourceChannelId,
           discordInteractionId: command.discordInteractionId,
+          bridgeReceipt,
         })
         .returning({ id: bugReports.id, reportNumber: bugReports.reportNumber });
 

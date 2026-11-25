@@ -12,6 +12,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
 };
 
 function readDatabaseUrl(): string {
+  if (process.env.REPROLOOP_MODE === "broker") throw new DatabaseConfigurationError();
   const databaseUrl = process.env.DATABASE_URL?.trim();
 
   if (!databaseUrl) {

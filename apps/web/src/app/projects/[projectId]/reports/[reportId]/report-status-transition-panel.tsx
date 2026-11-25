@@ -9,7 +9,7 @@ import type {
 } from "@reproloop/shared";
 import { LoaderCircle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useTransition } from "react";
 
 type StatusAction =
   | "request_information"
@@ -57,7 +57,9 @@ export function ReportStatusTransitionPanel({
     builds.find((build) => build.isActive)?.id ?? builds[0]?.id ?? "",
   );
   const [note, setNote] = useState("");
-  const [pending, setPending] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [refreshing, refresh] = useTransition();
+  const pending = saving || refreshing;
   const [feedback, setFeedback] = useState<
     { kind: "success" | "error"; message: string } | undefined
   >();
@@ -96,7 +98,7 @@ export function ReportStatusTransitionPanel({
             expectedVersion: version,
           };
 
-    setPending(true);
+    setSaving(true);
     setFeedback(undefined);
 
     try {
@@ -112,7 +114,7 @@ export function ReportStatusTransitionPanel({
       if (!response.ok) {
         const error = "error" in body ? body.error : undefined;
         if (error?.code === "CONFLICT") {
-          router.refresh();
+          refresh(() => router.refresh());
         }
         throw new Error(error?.message ?? "상태를 변경하지 못했습니다.");
       }
@@ -122,14 +124,14 @@ export function ReportStatusTransitionPanel({
         kind: "success",
         message: `${actionLabels[action]} 처리가 완료되었습니다.`,
       });
-      router.refresh();
+      refresh(() => router.refresh());
     } catch (error) {
       setFeedback({
         kind: "error",
         message: error instanceof Error ? error.message : "상태를 변경하지 못했습니다.",
       });
     } finally {
-      setPending(false);
+      setSaving(false);
     }
   }
 
@@ -177,6 +179,7 @@ export function ReportStatusTransitionPanel({
           <label className="grid gap-2 text-sm font-medium text-zinc-700">
             수정 빌드
             <select
+              aria-label="수정 빌드"
               value={fixedBuildId}
               onChange={(event) => {
                 setFixedBuildId(event.target.value);

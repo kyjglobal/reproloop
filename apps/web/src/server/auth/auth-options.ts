@@ -1,7 +1,9 @@
 import type { Account, NextAuthOptions, Session } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
+import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 import { z } from "zod";
+import { authenticateLocalAccount } from "./local-accounts";
 
 const AuthEnvironmentSchema = z.strictObject({
   appUrl: z.url(),
@@ -104,6 +106,27 @@ export function createAuthOptions(environment: AuthEnvironment): NextAuthOptions
 }
 
 export function getAuthOptions(): NextAuthOptions {
+  if (process.env.REPROLOOP_MODE === "local") {
+    const { appUrl, secret } = AuthEnvironmentSchema.pick({ appUrl: true, secret: true }).parse({
+      appUrl: process.env.NEXTAUTH_URL || process.env.APP_URL,
+      secret: process.env.AUTH_SECRET,
+    });
+    process.env.NEXTAUTH_URL ||= appUrl;
+    return {
+      secret,
+      session: { strategy: "jwt", maxAge: 12 * 60 * 60 },
+      providers: [CredentialsProvider({
+        name: "ReproLoop 계정",
+        credentials: { username: { type: "text" }, password: { type: "password" } },
+        authorize: authenticateLocalAccount,
+      })],
+      pages: { signIn: "/login" },
+      callbacks: {
+        jwt: ({ token, user }) => user ? { ...token, discordUserId: user.id } : token,
+        session: ({ session, token }) => exposeDiscordUserId(session, token),
+      },
+    };
+  }
   const environment = readAuthEnvironment();
 
   // NextAuth.js v4 uses NEXTAUTH_URL internally. Reuse the repository's APP_URL contract.

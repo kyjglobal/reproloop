@@ -5,7 +5,7 @@ import {
 } from "./interaction-handler";
 import { parseModalSubmit } from "./interaction-parser";
 import { editOriginalDiscordInteractionResponse } from "./followup";
-import { deferredEphemeralMessage, ephemeralMessage } from "./responses";
+import { autocompleteResponse, deferredEphemeralMessage, ephemeralMessage } from "./responses";
 import { verifyDiscordRequest } from "./verify-request";
 
 const defaultLogger: DiscordInteractionLogger = {
@@ -27,6 +27,8 @@ export async function handleDiscordInteractionRequest(
     logger?: DiscordInteractionLogger;
     scheduleAfterResponse?: (task: () => Promise<void>) => void;
     editOriginalResponse?: typeof editOriginalDiscordInteractionResponse;
+    specialInteraction?: (payload: unknown) => Promise<unknown>;
+    friendlyError?: (error: unknown) => string | undefined;
   },
 ): Promise<Response> {
   const requestId = request.headers.get("x-request-id")?.trim() || crypto.randomUUID();
@@ -57,6 +59,8 @@ export async function handleDiscordInteractionRequest(
   }
 
   try {
+    const special = await dependencies.specialInteraction?.(payload);
+    if (special) return json(special);
     const modal = parseModalSubmit(payload);
     if (modal && dependencies.scheduleAfterResponse) {
       const logger = dependencies.logger ?? defaultLogger;
@@ -70,7 +74,8 @@ export async function handleDiscordInteractionRequest(
           content = await handleDiscordModalSubmission(modal, dependencies.repository);
         } catch (error) {
           logger.error("Discord interaction failed", { requestId, error });
-          content = `제보 처리에 실패했습니다. 문의 코드: ${requestId}`;
+          content = dependencies.friendlyError?.(error) ??
+            `제보 처리에 실패했습니다. 문의 코드: ${requestId}`;
         }
 
         try {
@@ -107,7 +112,12 @@ export async function handleDiscordInteractionRequest(
       requestId,
       error,
     });
-    return json(ephemeralMessage(`제보 처리에 실패했습니다. 문의 코드: ${requestId}`), {
+    const message = dependencies.friendlyError?.(error);
+    const response = message && typeof payload === "object" && payload !== null &&
+      "type" in payload && payload.type === 4
+      ? autocompleteResponse([])
+      : ephemeralMessage(message ?? `제보 처리에 실패했습니다. 문의 코드: ${requestId}`);
+    return json(response, {
       headers: { "x-request-id": requestId },
     });
   }

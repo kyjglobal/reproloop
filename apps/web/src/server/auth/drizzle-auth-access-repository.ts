@@ -14,11 +14,24 @@ import type {
   ProjectMembership,
   UserOrganizationMembership,
 } from "./types";
+import { AuthAccessError } from "./errors";
 
 export class DrizzleAuthAccessRepository implements AuthAccessRepository {
   constructor(private readonly database: Database) {}
 
   async resolveUser(identity: DiscordIdentity) {
+    if (identity.discordUserId.startsWith("local:")) {
+      const [local] = await this.database.select().from(users)
+        .where(eq(users.discordUserId, identity.discordUserId));
+      if (!local?.passwordHash) throw new AuthAccessError("UNAUTHENTICATED", "로그인이 필요합니다.");
+      return {
+        id: local.id,
+        discordUserId: local.discordUserId,
+        displayName: local.displayName,
+        email: local.email,
+        avatarUrl: local.avatarUrl,
+      };
+    }
     const [user] = await this.database
       .insert(users)
       .values({
