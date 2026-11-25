@@ -41,6 +41,7 @@ export const bugReports = pgTable(
     discordGuildId: text("discord_guild_id").notNull(),
     sourceChannelId: text("source_channel_id").notNull(),
     discordInteractionId: text("discord_interaction_id").notNull(),
+    bridgeReceipt: text("bridge_receipt"),
     canonicalReportId: uuid("canonical_report_id").references(
       (): AnyPgColumn => bugReports.id,
       { onDelete: "restrict" },

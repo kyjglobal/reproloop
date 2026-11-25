@@ -40,3 +40,11 @@ export const discordBugApplicationCommand = {
     },
   ],
 } as const;
+
+export const discordConnectApplicationCommand = {
+  name: "reproloop",
+  description: "ReproLoop 로컬 설치본을 관리합니다.",
+  default_member_permissions: "32",
+  type: 1,
+  options: [{ type: 1, name: "connect", description: "로컬 설치본에 입력할 연결 코드를 발급합니다." }],
+} as const;

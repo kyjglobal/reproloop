@@ -22,6 +22,8 @@ export const notifications = pgTable(
     lastErrorCode: text("last_error_code"),
     lastErrorMessage: text("last_error_message"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    dispatchStartedAt: timestamp("dispatch_started_at", { withTimezone: true }),
+    discordMessageId: text("discord_message_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

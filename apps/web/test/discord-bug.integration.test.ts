@@ -114,6 +114,8 @@ describeWithDatabase("Discord bug database integration", () => {
     return {
       id: `discord-bug-interaction-${suffix}`,
       type: 5,
+      application_id: "test-application",
+      token: "test-interaction-token",
       guild_id: externalGuildId,
       channel_id: `discord-bug-channel-${suffix}`,
       member: {

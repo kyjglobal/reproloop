@@ -12,6 +12,9 @@ export const discordGuilds = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     discordGuildId: text("discord_guild_id").notNull(),
     name: text("name").notNull(),
+    bridgeInstallationId: uuid("bridge_installation_id"),
+    bridgeToken: text("bridge_token"),
+    bridgeLastSeenAt: timestamp("bridge_last_seen_at", { withTimezone: true }),
     bugChannelId: text("bug_channel_id"),
     installedByUserId: uuid("installed_by_user_id").references(() => users.id, {
       onDelete: "set null",

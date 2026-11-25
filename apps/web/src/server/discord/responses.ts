@@ -20,19 +20,17 @@ function textInput(input: {
   placeholder?: string;
 }) {
   return {
-    type: MessageComponentTypes.ACTION_ROW,
-    components: [
-      {
-        type: MessageComponentTypes.INPUT_TEXT,
-        custom_id: input.customId,
-        label: input.label,
-        style: input.style,
-        min_length: input.minLength,
-        max_length: input.maxLength,
-        required: true,
-        ...(input.placeholder ? { placeholder: input.placeholder } : {}),
-      },
-    ],
+    type: 18, // Discord Label
+    label: input.label,
+    component: {
+      type: MessageComponentTypes.INPUT_TEXT,
+      custom_id: input.customId,
+      style: input.style,
+      min_length: input.minLength,
+      max_length: input.maxLength,
+      required: true,
+      ...(input.placeholder ? { placeholder: input.placeholder } : {}),
+    },
   };
 }
 

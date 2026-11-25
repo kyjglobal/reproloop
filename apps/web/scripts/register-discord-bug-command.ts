@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 
 import { config } from "dotenv";
 
-import { discordBugApplicationCommand } from "../src/server/discord/constants";
+import { discordBugApplicationCommand, discordConnectApplicationCommand } from "../src/server/discord/constants";
 
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10";
 
@@ -57,30 +57,22 @@ function parseRegisteredCommands(value: unknown): RegisteredCommand[] {
 
 async function main() {
   const applicationId = requiredEnvironmentVariable("DISCORD_APPLICATION_ID");
-  const guildId = requiredEnvironmentVariable("DISCORD_TEST_GUILD_ID");
   const botToken = requiredEnvironmentVariable("DISCORD_BOT_TOKEN");
-  const commandsPath = `/applications/${applicationId}/guilds/${guildId}/commands`;
+  const global = process.argv.includes("--global");
+  const commandsPath = global ? `/applications/${applicationId}/commands`
+    : `/applications/${applicationId}/guilds/${requiredEnvironmentVariable("DISCORD_TEST_GUILD_ID")}/commands`;
 
   const registeredCommands = parseRegisteredCommands(
     await discordRequest(commandsPath, botToken),
   );
-  const existing = registeredCommands.find(
-    (command) => command.name === discordBugApplicationCommand.name,
-  );
-
-  const saved = await discordRequest(
-    existing ? `${commandsPath}/${existing.id}` : commandsPath,
-    botToken,
-    {
+  for (const command of [discordBugApplicationCommand, discordConnectApplicationCommand]) {
+    const existing = registeredCommands.find((candidate) => candidate.name === command.name);
+    const body = global ? { ...command, integration_types: [0], contexts: [0] } : command;
+    await discordRequest(existing ? `${commandsPath}/${existing.id}` : commandsPath, botToken, {
       method: existing ? "PATCH" : "POST",
-      body: JSON.stringify(discordBugApplicationCommand),
-    },
-  );
-
-  const action = existing ? "updated" : "created";
-  console.log(`Discord /${discordBugApplicationCommand.name} command ${action}.`);
-  if (typeof saved === "object" && saved !== null && "id" in saved) {
-    console.log(`Command ID: ${String(saved.id)}`);
+      body: JSON.stringify(body),
+    });
+    console.log(`Discord /${command.name} command ${existing ? "updated" : "created"}.`);
   }
 }
 

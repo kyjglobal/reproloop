@@ -15,6 +15,13 @@
       "when": 1786870800000,
       "tag": "0001_full_schema_alignment",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795587824961,
+      "tag": "0002_self_hosted",
+      "breakpoints": true
     }
   ]
 }

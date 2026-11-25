@@ -1,0 +1,73 @@
+x-reproloop: &reproloop
+  image: reproloop-local:source
+  pull_policy: never
+  environment:
+    REPROLOOP_MODE: local
+    APP_URL: ${REPROLOOP_APP_URL:-http://localhost:3000}
+    REPROLOOP_BROKER_URL: ${REPROLOOP_BROKER_URL:-}
+    REPROLOOP_DISCORD_APPLICATION_ID: ${REPROLOOP_DISCORD_APPLICATION_ID:-}
+  volumes:
+    - local-secrets:/run/reproloop:ro
+
+services:
+  secrets:
+    image: node:22-bookworm-slim
+    entrypoint: ["node", "-e"]
+    command:
+      - |
+        const fs = require("node:fs"), crypto = require("node:crypto");
+        for (const name of ["db-password", "auth-secret", "setup-token"]) {
+          try { fs.writeFileSync("/run/reproloop/" + name, crypto.randomBytes(32).toString("hex"), { flag: "wx", mode: 0o444 }); }
+          catch (error) { if (error.code !== "EEXIST") throw error; }
+        }
+    volumes:
+      - local-secrets:/run/reproloop
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: reproloop
+      POSTGRES_USER: reproloop
+      POSTGRES_PASSWORD_FILE: /run/reproloop/db-password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - local-secrets:/run/reproloop:ro
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "reproloop", "-d", "reproloop"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    <<: *reproloop
+    command: ["pnpm", "--filter", "@reproloop/db", "db:migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    <<: *reproloop
+    build: .
+    ports:
+      - "127.0.0.1:${REPROLOOP_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+  worker:
+    <<: *reproloop
+    command: ["node", "apps/worker/dist/index.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  local-secrets:

@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+customer.env
+deploy/broker.env
+**/node_modules
+**/.next
+**/dist
+.pnpm-store
+**/*.log
+test-results
+playwright-report

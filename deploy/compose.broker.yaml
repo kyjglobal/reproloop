@@ -1,0 +1,19 @@
+services:
+  broker:
+    build:
+      context: ..
+    image: reproloop-broker:source
+    env_file: broker.env
+    volumes:
+      - broker-state:/data
+    ports:
+      - "127.0.0.1:${REPROLOOP_BROKER_PORT:-3100}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  broker-state:

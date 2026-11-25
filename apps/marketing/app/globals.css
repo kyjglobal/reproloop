@@ -11,9 +11,9 @@
   --lime: #c8ff3d;
   --lime-soft: rgba(200, 255, 61, .09);
   --orange: #ff7657;
-  --font-sans: var(--font-geist-sans), "Pretendard Variable", Pretendard, system-ui, sans-serif;
-  --font-ko: "Pretendard Variable", Pretendard, var(--font-geist-sans), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), Consolas, monospace;
+  --font-sans: "Geist", "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-ko: "Pretendard Variable", Pretendard, "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", Consolas, monospace;
 }
 
 * { box-sizing: border-box; }

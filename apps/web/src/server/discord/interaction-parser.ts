@@ -62,9 +62,10 @@ const ModalSubmitSchema = GuildInteractionSchema.extend({
   data: z.object({
     custom_id: z.string(),
     components: z.array(
-      z.object({
-        components: z.array(ModalComponentSchema),
-      }),
+      z.union([
+        z.object({ component: ModalComponentSchema }),
+        z.object({ components: z.array(ModalComponentSchema) }),
+      ]),
     ),
   }),
 });
@@ -136,7 +137,7 @@ export function extractBugModalFields(
   const values = new Map<string, string>();
 
   for (const row of interaction.data.components) {
-    for (const component of row.components) {
+    for (const component of "component" in row ? [row.component] : row.components) {
       if (values.has(component.custom_id)) return null;
       values.set(component.custom_id, component.value);
     }
