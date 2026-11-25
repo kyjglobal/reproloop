@@ -35,10 +35,6 @@ docs/
 - [Day 7 제보 상태 변경 API UI 입문자 가이드](./a-용준/guides/A-Day7_제보_상태_변경_API_UI_입문자_가이드.md)
 - [Day 8 수정 완료 알림 Worker 입문자 가이드](./a-용준/guides/A-Day8_수정_완료_알림_Worker_입문자_가이드.md)
 
-### 보관 문서
-
-- [용준이에게](./a-용준/archive/용준이에게.md)
-
 ## B · 신정
 
 ### 계획
